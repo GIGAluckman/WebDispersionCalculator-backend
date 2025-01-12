@@ -1,0 +1,4 @@
+git+https://gitlab.hzdr.de/micromagnetic-modeling/tetrax.git
+flask
+flask_cors
+python-dotenv
