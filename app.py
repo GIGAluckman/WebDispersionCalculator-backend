@@ -13,7 +13,7 @@ frontend_origin = os.getenv('FRONTEND_ORIGIN')
 simulation_results = {}
 
 app = Flask(__name__)
-CORS(app, origins=[frontend_origin])  # Allow only your React app's origin
+CORS(app)  # Allow only your React app's origin
 
 # Route to accept form data from the frontend
 @app.route('/submit', methods=['POST'])
@@ -28,8 +28,11 @@ def submit():
         dispersion = txCalc.calculate_dispersion().to_json(orient='columns')
     
     simulation_results[task_id] = dispersion
+    response = jsonify(dispersion)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    print(response)
     
-    return jsonify(dispersion)
+    return response
 
 # Route to check simulation status
 @app.route('/status/<task_id>', methods=['GET'])

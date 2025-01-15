@@ -19,7 +19,7 @@ class TetraxCalc:
             
         elif self.geometry == 'Plane Film':
             self.sample = tx.create_sample(f'simulation_data/{self.task_id}', geometry='layer')
-            mesh = tx.geometries.monolayer_line_trace(self.data['thickness'], self.data['thickness']/10)
+            mesh = tx.geometries.monolayer_line_trace(self.data['thickness'], 10)
             
         elif self.geometry == 'Wire':
             self.sample = tx.create_sample(f'simulation_data/{self.task_id}', geometry='waveguide')
@@ -47,7 +47,7 @@ class TetraxCalc:
         
         self.sample.mag = self.data['fieldAxis']
         exp = tx.create_experimental_setup(self.sample)
-        exp.Bext = [i*self.data['extField']/1e3 for i in self.data['fieldAxis']]
+        exp.Bext = [i*self.data['externalField']/1e3 for i in self.data['fieldAxis']]
         
         print('External field set to:', exp.Bext[0], 'T')
         
@@ -62,7 +62,7 @@ class TetraxCalc:
             print('Relaxation failed')
         dispersion = exp.eigenmodes(
             num_cpus=-1,
-            num_modes=self.data['nModes'],
+            num_modes=int(self.data['numberOfModes']),
             kmin=self.data['kMin'] * 1e6,
             kmax=self.data['kMax'] * 1e6, Nk=11)
         
