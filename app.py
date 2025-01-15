@@ -19,6 +19,7 @@ CORS(app)  # Allow only your React app's origin
 @app.route('/submit', methods=['POST'])
 def submit():
     data = request.json  # Get JSON data from the request
+    print(type(data))
     
     task_id = str(uuid.uuid4())
     print(f"Task ID: {task_id}")

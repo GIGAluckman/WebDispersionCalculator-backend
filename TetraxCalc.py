@@ -14,16 +14,16 @@ class TetraxCalc:
             mesh = tx.geometries.rectangle_cross_section(
                 self.data['width'], 
                 self.data['thickness'], 
-                self.data['width']/20, 
-                self.data['thickness']/5)
+                int(self.data.get('dThick', 5)), 
+                int(self.data.get('dWidth', 5)))
             
         elif self.geometry == 'Plane Film':
             self.sample = tx.create_sample(f'simulation_data/{self.task_id}', geometry='layer')
-            mesh = tx.geometries.monolayer_line_trace(self.data['thickness'], 10)
+            mesh = tx.geometries.monolayer_line_trace(self.data['thickness'], int(self.data.get('dThick', 5)))
             
         elif self.geometry == 'Wire':
             self.sample = tx.create_sample(f'simulation_data/{self.task_id}', geometry='waveguide')
-            mesh = tx.geometries.round_wire_cross_section(self.data['radius'], self.data['radius']/5)
+            mesh = tx.geometries.round_wire_cross_section(self.data['radius'], int(self.data.get('dRadius', 5)))
         
         self.sample.set_geom(mesh)
         
@@ -64,7 +64,7 @@ class TetraxCalc:
             num_cpus=-1,
             num_modes=int(self.data['numberOfModes']),
             kmin=self.data['kMin'] * 1e6,
-            kmax=self.data['kMax'] * 1e6, Nk=11)
+            kmax=self.data['kMax'] * 1e6, Nk=int(self.data.get('numberOfK', 11)))
         
         dispersion['k (rad/m)'] = dispersion['k (rad/m)'] / 1e6
         
