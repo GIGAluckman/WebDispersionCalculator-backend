@@ -1,3 +1,4 @@
 simulation_data/
 venv/
 .env
+gunicorn.conf.py
