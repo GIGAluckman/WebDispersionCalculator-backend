@@ -67,6 +67,7 @@ class TetraxCalc:
             kmax=self.data['kMax'] * 1e6, Nk=int(self.data.get('numberOfK', 11)))
         
         dispersion['k (rad/m)'] = dispersion['k (rad/m)'] / 1e6
+        dispersion.rename(columns={'k (rad/m)': 'k (rad/µm)'}, inplace=True)
         
         return dispersion
     
