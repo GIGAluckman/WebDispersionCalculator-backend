@@ -1,4 +1,5 @@
 simulation_data/
+__pycache__
 venv/
 .env
 gunicorn.conf.py
