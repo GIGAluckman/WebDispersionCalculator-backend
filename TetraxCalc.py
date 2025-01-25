@@ -40,7 +40,7 @@ class TetraxCalc:
         print(f'Ku1: {self.sample.Ku1} J/m^3')
         print(f'e_u: {self.sample.e_u}')
         
-    def calculate_dispersion(self):
+    def calculate_dispersion(self, socketio):
         
         self.set_geometry()
         self.set_material()
@@ -61,6 +61,8 @@ class TetraxCalc:
         else:
             print('Relaxation failed')
         dispersion = exp.eigenmodes(
+            socketio=socketio,
+            task_id=self.task_id,
             num_cpus=-1,
             num_modes=int(self.data['numberOfModes']),
             kmin=self.data['kMin'] * 1e6,
