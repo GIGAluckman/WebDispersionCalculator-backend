@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+import json
 import os
 from TetraxCalc import TetraxCalc
 import uuid
@@ -19,10 +20,19 @@ CORS(app)  # Allow only your React app's origin
 @app.route('/submit', methods=['POST'])
 def submit():
     data = request.json  # Get JSON data from the request
-    print(type(data))
     
     task_id = str(uuid.uuid4())
+    data_to_json = {task_id: data}
+    
+    with open('simulation_data/db.json') as f:
+        data_from_db = json.load(f)
+
+    data_from_db.update(data_to_json)
+    
     print(f"Task ID: {task_id}")
+    
+    with open('simulation_data/db.json', 'w', encoding='utf-8') as f:
+        json.dump(data_from_db, f, ensure_ascii=False, indent=4)
     
     txCalc = TetraxCalc(data, task_id)
     if txCalc.data['chosenExperiment'] == 'Dispersion':
