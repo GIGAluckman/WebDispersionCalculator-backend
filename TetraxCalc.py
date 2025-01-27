@@ -1,12 +1,22 @@
 import tetrax as tx
+import json
+import os
 
 class TetraxCalc:
     def __init__(self, data, id):
         
+        os.mkdir(f'simulation_data/{id}')
+        self.db_path = f'simulation_data/{id}/db.json'
         self.task_id = id
         self.data = data
         self.geometry = data['chosenGeometry']
         self.data_parser()
+        
+        data['status'] = 'pending'
+        data_to_json = {'data': data}
+        
+        with open(self.db_path, 'w', encoding='utf-8') as f:
+            json.dump(data_to_json, f, ensure_ascii=False, indent=4)
         
     def set_geometry(self):
         if self.geometry == 'Waveguide':
@@ -58,9 +68,16 @@ class TetraxCalc:
             nr_trial += 1
         if success:
             print('Relaxation successful')
+            with open(self.db_path) as f:
+                data_from_db = json.load(f)
+            
+            data_from_db['data']['status'] = 'relaxed'
+            with open(self.db_path, 'w', encoding='utf-8') as f:
+                json.dump(data_from_db, f, ensure_ascii=False, indent=4)
         else:
             print('Relaxation failed')
         dispersion = exp.eigenmodes(
+            db_path=self.db_path,
             num_cpus=-1,
             num_modes=int(self.data['numberOfModes']),
             kmin=self.data['kMin'] * 1e6,
@@ -68,6 +85,13 @@ class TetraxCalc:
         
         dispersion['k (rad/m)'] = dispersion['k (rad/m)'] / 1e6
         dispersion.rename(columns={'k (rad/m)': 'k (rad/µm)'}, inplace=True)
+        
+        with open(self.db_path) as f:
+            data_from_db = json.load(f)
+            
+        data_from_db['data']['status'] = 'done'
+        with open(self.db_path, 'w', encoding='utf-8') as f:
+            json.dump(data_from_db, f, ensure_ascii=False, indent=4)
         
         return dispersion
     
