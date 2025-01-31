@@ -1,5 +1,4 @@
 import tetrax as tx
-import json
 import os
 from helpers import JSONHelper
 
