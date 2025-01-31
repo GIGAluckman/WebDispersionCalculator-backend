@@ -39,9 +39,9 @@ def status(task_id):
         with open(f'simulation_data/{task_id}/db.json') as f:
             data = json.load(f)        
     else: 
-        return jsonify({"status": "creating", "progress": 0})
+        return jsonify({"status": "Creating", "progress": 0})
     
-    status = data['data'].get('status', 0)
+    status = data['data'].get('status', 'NA')
     progress = data['data'].get('progress', 0)
     return jsonify({"status": status, "progress": progress})
 

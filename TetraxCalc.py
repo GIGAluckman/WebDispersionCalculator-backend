@@ -74,7 +74,7 @@ class TetraxCalc:
             print('Relaxation failed')
             self.json_helper.set_parameter('status', 'Relaxation unsuccessful!')
         
-        self.json_helper.set_parameter('status', 'Start dispersion calculation')    
+        self.json_helper.set_parameter('status', 'Dispersion calculation in progress')    
         
         dispersion = exp.eigenmodes(
             db_helper=self.json_helper,
@@ -86,7 +86,7 @@ class TetraxCalc:
         dispersion['k (rad/m)'] = dispersion['k (rad/m)'] / 1e6
         dispersion.rename(columns={'k (rad/m)': 'k (rad/µm)'}, inplace=True)
         
-        self.json_helper.set_parameter('status', 'Dispersion calculation successful')
+        self.json_helper.set_parameter('status', 'Dispersion calculation successful!')
         
         return dispersion
     
