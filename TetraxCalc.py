@@ -1,22 +1,22 @@
 import tetrax as tx
 import json
 import os
+from helpers import JSONHelper
 
 class TetraxCalc:
     def __init__(self, data, id):
         
-        os.mkdir(f'simulation_data/{id}')
+        if not os.path.exists(f'simulation_data/{id}'):
+            os.mkdir(f'simulation_data/{id}')
+        
         self.db_path = f'simulation_data/{id}/db.json'
+        print('DB path:', self.db_path)
         self.task_id = id
         self.data = data
         self.geometry = data['chosenGeometry']
         self.data_parser()
-        
-        data['status'] = 'pending'
-        data_to_json = {'data': data}
-        
-        with open(self.db_path, 'w', encoding='utf-8') as f:
-            json.dump(data_to_json, f, ensure_ascii=False, indent=4)
+        self.json_helper = JSONHelper(self.db_path)
+        self.json_helper.create_db(data)
         
     def set_geometry(self):
         if self.geometry == 'Waveguide':
@@ -60,6 +60,7 @@ class TetraxCalc:
         exp.Bext = [i*self.data['externalField']/1e3 for i in self.data['fieldAxis']]
         
         print('External field set to:', exp.Bext[0], 'T')
+        self.json_helper.set_parameter('status', 'Start relaxation')
         
         nr_trial = 0
         success = False
@@ -68,16 +69,15 @@ class TetraxCalc:
             nr_trial += 1
         if success:
             print('Relaxation successful')
-            with open(self.db_path) as f:
-                data_from_db = json.load(f)
-            
-            data_from_db['data']['status'] = 'relaxed'
-            with open(self.db_path, 'w', encoding='utf-8') as f:
-                json.dump(data_from_db, f, ensure_ascii=False, indent=4)
+            self.json_helper.set_parameter('status', 'Relaxation successful')
         else:
             print('Relaxation failed')
+            self.json_helper.set_parameter('status', 'Relaxation unsuccessful!')
+        
+        self.json_helper.set_parameter('status', 'Start dispersion calculation')    
+        
         dispersion = exp.eigenmodes(
-            db_path=self.db_path,
+            db_helper=self.json_helper,
             num_cpus=-1,
             num_modes=int(self.data['numberOfModes']),
             kmin=self.data['kMin'] * 1e6,
@@ -86,12 +86,7 @@ class TetraxCalc:
         dispersion['k (rad/m)'] = dispersion['k (rad/m)'] / 1e6
         dispersion.rename(columns={'k (rad/m)': 'k (rad/µm)'}, inplace=True)
         
-        with open(self.db_path) as f:
-            data_from_db = json.load(f)
-            
-        data_from_db['data']['status'] = 'done'
-        with open(self.db_path, 'w', encoding='utf-8') as f:
-            json.dump(data_from_db, f, ensure_ascii=False, indent=4)
+        self.json_helper.set_parameter('status', 'Dispersion calculation successful')
         
         return dispersion
     
@@ -104,9 +99,7 @@ class TetraxCalc:
                 self.data[key] = float(self.data[key])
             except:
                 continue
-        
-        
-        
+
 axis_to_index = {
     'x': [1, 0, 0], 
     'y': [0, 1, 0], 
