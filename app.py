@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 import json
-import uuid
 import os
 from TetraxCalc import TetraxCalc
 
@@ -21,8 +20,7 @@ CORS(app)  # Allow only your React app's origin
 def submit():
     data = request.json  # Get JSON data from the request
     
-    task_id = str(uuid.uuid4())
-    print(data)
+    task_id = data['id']
     
     txCalc = TetraxCalc(data, task_id)
     if txCalc.data['chosenExperiment'] == 'Dispersion':
@@ -37,15 +35,15 @@ def submit():
 # Route to check simulation status
 @app.route('/status/<task_id>', methods=['GET'])
 def status(task_id):
-    try:
-        print(f'simulation_data/{task_id}/json.db')
-        with open(f'simulation_data/{task_id}/json.db') as f:
-            data = json.load(f)
-    except:
-        return jsonify({"status": "creating"})
+    if os.path.exists(f'simulation_data/{task_id}/db.json'):
+        with open(f'simulation_data/{task_id}/db.json') as f:
+            data = json.load(f)        
+    else: 
+        return jsonify({"status": "creating", "progress": 0})
     
     status = data['data'].get('status', 0)
-    return jsonify({"status": status})
+    progress = data['data'].get('progress', 0)
+    return jsonify({"status": status, "progress": progress})
 
 @app.route('/', methods=['GET'])
 def index():
