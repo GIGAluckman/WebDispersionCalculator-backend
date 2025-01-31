@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 import json
 import os
 from TetraxCalc import TetraxCalc
-import uuid
 
 load_dotenv()
 host = os.getenv('FLASK_RUN_HOST')
@@ -21,18 +20,7 @@ CORS(app)  # Allow only your React app's origin
 def submit():
     data = request.json  # Get JSON data from the request
     
-    task_id = str(uuid.uuid4())
-    data_to_json = {task_id: data}
-    
-    with open('simulation_data/db.json') as f:
-        data_from_db = json.load(f)
-
-    data_from_db.update(data_to_json)
-    
-    print(f"Task ID: {task_id}")
-    
-    with open('simulation_data/db.json', 'w', encoding='utf-8') as f:
-        json.dump(data_from_db, f, ensure_ascii=False, indent=4)
+    task_id = data['id']
     
     txCalc = TetraxCalc(data, task_id)
     if txCalc.data['chosenExperiment'] == 'Dispersion':
@@ -41,18 +29,21 @@ def submit():
     simulation_results[task_id] = dispersion
     response = jsonify(dispersion)
     response.headers.add('Access-Control-Allow-Origin', '*')
-    print(response)
     
     return response
 
 # Route to check simulation status
 @app.route('/status/<task_id>', methods=['GET'])
 def status(task_id):
-    result = simulation_results.get(task_id)
-    if result:
-        return result
-    else:
-        return jsonify({"status": "pending"})
+    if os.path.exists(f'simulation_data/{task_id}/db.json'):
+        with open(f'simulation_data/{task_id}/db.json') as f:
+            data = json.load(f)        
+    else: 
+        return jsonify({"status": "Creating", "progress": 0})
+    
+    status = data['data'].get('status', 'NA')
+    progress = data['data'].get('progress', 0)
+    return jsonify({"status": status, "progress": progress})
 
 @app.route('/', methods=['GET'])
 def index():
