@@ -1,6 +1,7 @@
 import tetrax as tx
 import os
 from helpers import JSONHelper
+import numpy as np
 
 class TetraxCalc:
     def __init__(self, data, id):
@@ -82,6 +83,8 @@ class TetraxCalc:
             kmin=self.data['kMin'] * 1e6,
             kmax=self.data['kMax'] * 1e6, Nk=int(self.data.get('numberOfK', 11)))
         
+        dispersion = self.group_velocity(dispersion)
+        
         dispersion['k (rad/m)'] = dispersion['k (rad/m)'] / 1e6
         dispersion.rename(columns={'k (rad/m)': 'k (rad/µm)'}, inplace=True)
         
@@ -98,6 +101,17 @@ class TetraxCalc:
                 self.data[key] = float(self.data[key])
             except:
                 continue
+            
+    def group_velocity(self, dispersion):
+        dk = np.diff(dispersion['k (rad/m)'])
+        for i in range(len(dispersion.keys())):
+            if i == 0: continue
+            freq = dispersion[f"f{i-1} (GHz)"]
+            dw = np.diff(freq) * 2 * np.pi * 1e9
+            velocity = dw/dk
+            dispersion[f"v{i-1} (m/s)"] = np.insert(velocity, 0, 0)
+            
+        return dispersion
 
 axis_to_index = {
     'x': [1, 0, 0], 
