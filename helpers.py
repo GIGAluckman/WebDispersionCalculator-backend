@@ -20,3 +20,8 @@ class JSONHelper:
         
         with open(self.db_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
+            
+    def get_parameter(self, name):
+        with open(self.db_path) as f:
+            data = json.load(f)
+        return data['data'][name]
