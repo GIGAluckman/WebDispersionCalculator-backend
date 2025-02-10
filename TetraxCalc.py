@@ -118,6 +118,8 @@ class TetraxCalc:
         dispersion = dispersion[dispersion['k (rad/µm)'] <= self.data['kMax']]
         dispersion.drop(columns=['m'], inplace=True)
         
+        dispersion.to_csv(f'simulation_data/{self.task_id}/dispersion_data.csv')
+        
         print('Dispersion calculated successfully!')
         
         self.json_helper.set_parameter('status', 'Dispersion calculation successful!')
