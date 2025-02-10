@@ -8,6 +8,8 @@ def group_velocity(dispersion):
             dw = np.diff(freq) * 2 * np.pi * 1e9
             velocity = dw/dk
             dispersion[f"v{freq_name[1]} (m/s)"] = np.insert(velocity, 0, 0)
+            if 0. in dispersion['k (rad/m)']:
+                dispersion.loc[dispersion['k (rad/m)'] == 0., f"v{freq_name[1]} (m/s)"] = 0.01
         
     return dispersion
 
@@ -16,7 +18,7 @@ def lifetime(dispersion):
         if 'Gamma' in gamma_name:
             gamma = dispersion[gamma_name]
             lifetime = 1/gamma
-            dispersion[f"lt{gamma_name[5]} (ns)"] = lifetime * 1e9
+            dispersion[f"lt{gamma_name[5]} (ns)"] = lifetime * 1e9 / 2 / np.pi
             dispersion.drop(columns=[gamma_name], inplace=True)
             
     return dispersion
