@@ -108,11 +108,13 @@ class TetraxCalc:
                 dispersion[col] = dispersion[col] / 1e9
                 dispersion.rename(columns={col: col.replace('Hz', 'GHz')}, inplace=True)
         
-        dispersion = group_velocity(dispersion)
         dispersion = lifetime(dispersion)
+        dispersion = group_velocity(dispersion)
         dispersion = propagation_length(dispersion)
         dispersion['k (rad/m)'] = dispersion['k (rad/m)'] / 1e6
+        dispersion['kshift (rad/m)'] = dispersion['kshift (rad/m)'] / 1e6
         dispersion.rename(columns={'k (rad/m)': 'k (rad/µm)'}, inplace=True)
+        dispersion.rename(columns={'kshift (rad/m)': 'kshift (rad/µm)'}, inplace=True)
         
         dispersion = dispersion[dispersion['k (rad/µm)'] >= self.data['kMin']]
         dispersion = dispersion[dispersion['k (rad/µm)'] <= self.data['kMax']]
