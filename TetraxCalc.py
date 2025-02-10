@@ -1,7 +1,7 @@
 import tetrax as tx
 import os
 from helpers import JSONHelper
-import numpy as np
+from df_manipulation import *
 
 class TetraxCalc:
     def __init__(self, data, id):
@@ -98,20 +98,24 @@ class TetraxCalc:
             kmax=self.data['kMax'] * 1e6, 
             num_k=int(self.data.get('numberOfK', 11)))
         
+        dispersion.plot_linewidths()
+        
         dispersion = dispersion.spectrum_dataframe
         
         for col in dispersion.columns:
-            if 'Hz' in col:
+            if 'Hz' in col and 'Gamma' not in col:
                 dispersion[col] = dispersion[col] / 1e9
                 dispersion.rename(columns={col: col.replace('Hz', 'GHz')}, inplace=True)
         
-        dispersion = self.group_velocity(dispersion)
-        
+        dispersion = group_velocity(dispersion)
+        dispersion = lifetime(dispersion)
+        dispersion = propagation_length(dispersion)
         dispersion['k (rad/m)'] = dispersion['k (rad/m)'] / 1e6
         dispersion.rename(columns={'k (rad/m)': 'k (rad/µm)'}, inplace=True)
         
         dispersion = dispersion[dispersion['k (rad/µm)'] >= self.data['kMin']]
         dispersion = dispersion[dispersion['k (rad/µm)'] <= self.data['kMax']]
+        dispersion.drop(columns=['m'], inplace=True)
         
         print('Dispersion calculated successfully!')
         
@@ -128,17 +132,6 @@ class TetraxCalc:
                 self.data[key] = float(self.data[key])
             except:
                 continue
-            
-    def group_velocity(self, dispersion):
-        dk = np.diff(dispersion['k (rad/m)'])
-        for freq_name in dispersion.keys():
-            if 'Hz' in freq_name:
-                freq = dispersion[freq_name]
-                dw = np.diff(freq) * 2 * np.pi * 1e9
-                velocity = dw/dk
-                dispersion[f"v{freq_name[1]} (m/s)"] = np.insert(velocity, 0, 0)
-            
-        return dispersion
 
 axis_to_index = {
     'x': [1, 0, 0], 
