@@ -2,15 +2,16 @@ import numpy as np
 
 def group_velocity(dispersion):
     dk = np.diff(dispersion['k (rad/m)'])
+    shifted_k = dispersion['k (rad/m)'] + abs(dispersion['k (rad/m)'][0] - dispersion['k (rad/m)'][1])/2
+    dispersion['kshift (rad/m)'] = np.insert(shifted_k[:-1], len(shifted_k[:-1])//2, 0)
+    
     for freq_name in dispersion.keys():
         if 'Hz' in freq_name and 'Gamma' not in freq_name:
             freq = dispersion[freq_name]
             dw = np.diff(freq) * 2 * np.pi * 1e9
             velocity = dw/dk
-            dispersion[f"v{freq_name[1]} (m/s)"] = np.insert(velocity, 0, 0)
-            if 0. in dispersion['k (rad/m)']:
-                dispersion.loc[dispersion['k (rad/m)'] == 0., f"v{freq_name[1]} (m/s)"] = 0.01
-        
+            dispersion[f"v{freq_name[1]} (m/s)"] = np.insert(velocity, len(velocity)//2, 0)
+                 
     return dispersion
 
 def lifetime(dispersion):
