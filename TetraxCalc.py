@@ -43,7 +43,7 @@ class TetraxCalc:
         
     def set_material(self):
         self.sample.material['Msat'] = float(self.data['saturationMagnetization'])
-        self.sample.material['Aex'] = float(self.data['exchangeStiffness'])
+        self.sample.material['Aex'] = float(self.data['exchangeStiffness']) * 1e-12
         self.sample.material['alpha'] = float(self.data['GilbertDamping'])
         if 'anisotropyConstant' in self.data.keys():
             self.sample.material['Ku1'] = float(self.data['anisotropyConstant'])
