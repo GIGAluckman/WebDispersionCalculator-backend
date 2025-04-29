@@ -32,7 +32,7 @@ class TetraxCalc:
                 thickness=self.data['thickness'],
                 cell_size=int(self.data.get('dThick', 5)),
             )
-            
+             
         elif self.geometry == 'Wire':
             mesh = tx.geometries.waveguide.round_wire(
                 radius=self.data['radius'],
