@@ -6,10 +6,11 @@ from df_manipulation import *
 class TetraxCalc:
     def __init__(self, data, id):
         
-        if not os.path.exists(f'simulation_data/{id}'):
-            os.mkdir(f'simulation_data/{id}')
+        simulation_path = os.path.join('simulation_data', str(id))
+        if not os.path.exists(simulation_path):
+            os.mkdir(simulation_path)
         
-        self.db_path = f'simulation_data/{id}/db.json'
+        self.db_path = os.path.join(simulation_path, 'db.json')
         print('DB path:', self.db_path)
         self.task_id = id
         self.data = data
@@ -39,7 +40,7 @@ class TetraxCalc:
                 cell_size=int(self.data.get('dRadius', 5)),
             )
         
-        self.sample = tx.Sample(mesh, name=f'simulation_data/{self.task_id}')
+        self.sample = tx.Sample(mesh, name=os.path.join('simulation_data', str(self.task_id)))
         
     def set_material(self):
         self.sample.material['Msat'] = float(self.data['saturationMagnetization'])
