@@ -8,7 +8,7 @@ class TetraxCalc:
         
         simulation_path = os.path.join('simulation_data', str(id))
         if not os.path.exists(simulation_path):
-            os.mkdir(simulation_path)
+            os.makedirs(simulation_path)
         
         self.db_path = os.path.join(simulation_path, 'db.json')
         print('DB path:', self.db_path)
