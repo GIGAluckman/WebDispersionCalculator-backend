@@ -1,0 +1,11 @@
+venv*/
+__pycache__/
+pygmsh/
+tetrax/
+*.pyc
+*.pyo
+*.pyd
+.env
+.DS_Store
+.git
+.gitignore
