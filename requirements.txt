@@ -1,4 +1,7 @@
-git+https://gitlab.hzdr.de/micromagnetic-modeling/tetrax.git@2.0.0
+-e ./pygmsh
+-e ./tetrax
+
 flask==3.1.0
 flask_cors==5.0.0
 python-dotenv==1.0.1
+gunicorn==23.0.0
