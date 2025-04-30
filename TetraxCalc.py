@@ -1,4 +1,4 @@
-import tetrax as tx
+import tetrax.tetrax as tx
 import os
 from helpers import JSONHelper
 from df_manipulation import *
@@ -94,13 +94,13 @@ class TetraxCalc:
         dispersion = tx.experiments.eigenmodes(
             sample=self.sample,
             db_helper=self.json_helper,
-            num_cpus=-1,
+            num_cpus=1,
             num_modes=int(self.data['numberOfModes']),
             kmin=self.data['kMin'] * 1e6,
             kmax=self.data['kMax'] * 1e6, 
             num_k=int(self.data.get('numberOfK', 11)))
         
-        dispersion.plot_linewidths()
+        dispersion.linewidths()
         
         dispersion = dispersion.spectrum_dataframe
         
