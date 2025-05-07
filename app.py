@@ -47,7 +47,7 @@ def status(task_id):
 
 @app.route('/', methods=['GET'])
 def index():
-    return jsonify({"message": "Welcome to the Flask API!"})
+    return jsonify({"message": "Welcome to the Web Dispersion Calculator backend!"})
 
 # Run the server
 if __name__ == '__main__':
