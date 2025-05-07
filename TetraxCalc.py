@@ -51,10 +51,10 @@ class TetraxCalc:
             self.sample.material['e_u'] = self.data['anisotropyAxis']
             
         print('Material set with parameters:')
-        print(f'Msat: {self.sample.material['Msat'].average} A/m')
-        print(f'Aex: {self.sample.material['Aex'].average} J/m')
-        print(f'Ku1: {self.sample.material['Ku1'].average} J/m^3')
-        print(f'e_u: {self.sample.material['e_u'].average}')
+        print(f"Msat: {self.sample.material['Msat'].average} A/m")
+        print(f"Aex: {self.sample.material['Aex'].average} J/m")
+        print(f"Ku1: {self.sample.material['Ku1'].average} J/m^3")
+        print(f"e_u: {self.sample.material['e_u'].average}")
         
     def calculate_dispersion(self):
         
