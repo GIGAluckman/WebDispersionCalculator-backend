@@ -1,7 +1,6 @@
 venv*/
 __pycache__/
-pygmsh/
-tetrax/
+simulation_data/
 *.pyc
 *.pyo
 *.pyd

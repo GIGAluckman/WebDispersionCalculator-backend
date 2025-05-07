@@ -1,5 +1,5 @@
--e ./pygmsh
--e ./tetrax
+./pygmsh
+./tetrax
 
 flask==3.1.0
 flask_cors==5.0.0
