@@ -1,4 +1,4 @@
-import tetrax.tetrax as tx
+import tetrax as tx
 import os
 from helpers import JSONHelper
 from df_manipulation import *
