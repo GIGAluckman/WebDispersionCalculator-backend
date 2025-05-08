@@ -32,7 +32,7 @@ RUN pip install --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose port for Azure Container App
-EXPOSE 8000
+EXPOSE 80
 
 # Run the backend with Gunicorn using external config
 CMD ["gunicorn", "app:app"]
