@@ -94,7 +94,7 @@ class TetraxCalc:
         dispersion = tx.experiments.eigenmodes(
             sample=self.sample,
             db_helper=self.json_helper,
-            num_cpus=1,
+            num_cpus=-1,
             num_modes=int(self.data['numberOfModes']),
             kmin=self.data['kMin'] * 1e6,
             kmax=self.data['kMax'] * 1e6, 
