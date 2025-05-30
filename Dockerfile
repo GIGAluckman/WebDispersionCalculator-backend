@@ -1,28 +1,22 @@
-# Use ubuntu image
-FROM --platform=linux/amd64 ubuntu:22.04
+# Use Python 3.11 slim image
+FROM --platform=linux/amd64 python:3.11-slim
 
-ARG DEBIAN_FRONTEND=noninteractive
+# Label the image
+LABEL version="1.0.0"
 
-# Tools needed to add the Deadsnakes PPA
+# Install system dependencies including Gmsh
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        build-essential gnupg dirmngr software-properties-common curl
-
-# Python 3.11 + Gmsh (system packages)
-RUN add-apt-repository -y ppa:deadsnakes/ppa && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-        python3.11 python3.11-dev python3.11-distutils python3.11-venv \
-        python3-gmsh
-
-# pip for Python 3.11  (optional but handy)
-RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
+        build-essential \
+        python3-gmsh \
+        curl && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy local code, including modified packages
 COPY . .
 
 # Create virtual environment
-RUN python3.11 -m venv venv
+RUN python -m venv venv
 
 # Activate virtual environment
 ENV PATH="/venv/bin:$PATH"
