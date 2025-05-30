@@ -10,8 +10,6 @@ host = os.getenv('FLASK_RUN_HOST')
 port = int(os.getenv('FLASK_RUN_PORT'))
 frontend_origin = os.getenv('FRONTEND_ORIGIN')
 
-simulation_results = {}
-
 app = Flask(__name__)
 CORS(app)  # Allow only your React app's origin
 
@@ -24,10 +22,14 @@ def submit():
     
     txCalc = TetraxCalc(data, task_id)
     if txCalc.data['chosenExperiment'] == 'Dispersion':
-        dispersion = txCalc.calculate_dispersion().to_json(orient='columns')
+        dispersion, error = txCalc.calculate_dispersion()
+        dispersion = dispersion.to_json(orient='columns')
     
-    simulation_results[task_id] = dispersion
-    response = jsonify(dispersion)
+    response_data = {
+        'dispersion': dispersion,
+        'errorId': error
+    }
+    response = jsonify(response_data)
     response.headers.add('Access-Control-Allow-Origin', '*')
     
     return response
@@ -39,11 +41,12 @@ def status(task_id):
         with open(f'simulation_data/{task_id}/db.json') as f:
             data = json.load(f)        
     else: 
-        return jsonify({"status": "Creating", "progress": 0})
+        return jsonify({"status": "Creating", "progress": 0, "error": 0})
     
     status = data['data'].get('status', 'NA')
     progress = data['data'].get('progress', 0)
-    return jsonify({"status": status, "progress": progress})
+    error = data['data'].get('error', 0)
+    return jsonify({"status": status, "progress": progress, "error": error})
 
 @app.route('/', methods=['GET'])
 def index():

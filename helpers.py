@@ -6,6 +6,7 @@ class JSONHelper:
         
     def create_db(self, data):
         data['status'] = 'pending'
+        data['error'] = 0
         data['progress'] = 0
         data_to_json = {'data': data}
         
