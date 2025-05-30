@@ -100,34 +100,25 @@ class TetraxCalc:
             kmax=self.data['kMax'] * 1e6, 
             num_k=int(self.data.get('numberOfK', 11)))
         
+        if if_nan(dispersion.spectrum_dataframe):
+            dispersion = dataframe_polish(dispersion.spectrum_dataframe, self.data['kMin'], self.data['kMax'], self.task_id)
+            self.json_helper.set_parameter('status', 'NaN found in dispersion calculation!')
+            self.json_helper.set_parameter('error', 2)
+            return dispersion, 1
+        
         dispersion.linewidths()
         
         dispersion = dispersion.spectrum_dataframe
         
-        for col in dispersion.columns:
-            if 'Hz' in col and 'Gamma' not in col:
-                dispersion[col] = dispersion[col] / 1e9
-                dispersion.rename(columns={col: col.replace('Hz', 'GHz')}, inplace=True)
-        
         dispersion = lifetime(dispersion)
         dispersion = group_velocity(dispersion)
         dispersion = propagation_length(dispersion)
-        dispersion['k (rad/m)'] = dispersion['k (rad/m)'] / 1e6
-        dispersion['kshift (rad/m)'] = dispersion['kshift (rad/m)'] / 1e6
-        dispersion.rename(columns={'k (rad/m)': 'k (rad/µm)'}, inplace=True)
-        dispersion.rename(columns={'kshift (rad/m)': 'kshift (rad/µm)'}, inplace=True)
-        
-        dispersion = dispersion[dispersion['k (rad/µm)'] >= self.data['kMin']]
-        dispersion = dispersion[dispersion['k (rad/µm)'] <= self.data['kMax']]
-        dispersion.drop(columns=['m'], inplace=True)
-        
-        dispersion.to_csv(f'simulation_data/{self.task_id}/dispersion_data.csv')
-        
+        dispersion = dataframe_polish(dispersion, self.data['kMin'], self.data['kMax'], self.task_id)
         print('Dispersion calculated successfully!')
         
         self.json_helper.set_parameter('status', 'Dispersion calculation successful!')
         
-        return dispersion
+        return dispersion, 0
     
     def data_parser(self):
         for key in self.data.keys():
