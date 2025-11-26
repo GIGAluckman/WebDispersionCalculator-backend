@@ -1,6 +1,6 @@
 import tetrax as tx
 import os
-from helpers import JSONHelper
+import time
 from df_manipulation import *
 
 class TetraxCalc:
@@ -54,7 +54,7 @@ class TetraxCalc:
         print(f"e_u: {self.sample.material['e_u'].average}")
         
     def calculate_dispersion(self):
-        
+        start_dispersion_time = time.time()
         self.set_geometry()
         self.set_material()
         
@@ -114,7 +114,8 @@ class TetraxCalc:
         print('Dispersion calculated successfully!')
         
         self.json_helper.set_parameter('status', 'Dispersion calculation successful!')
-        
+        end_dispersion_time = time.time()
+        self.json_helper.set_parameter('time', end_dispersion_time - start_dispersion_time)
         return dispersion, 0
     
     def data_parser(self):
