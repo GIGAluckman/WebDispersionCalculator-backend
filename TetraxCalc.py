@@ -4,20 +4,17 @@ from helpers import JSONHelper
 from df_manipulation import *
 
 class TetraxCalc:
-    def __init__(self, data, id):
+    def __init__(self, data, id, json_helper):
         
         simulation_path = os.path.join('simulation_data', str(id))
         if not os.path.exists(simulation_path):
             os.makedirs(simulation_path)
         
-        self.db_path = os.path.join(simulation_path, 'db.json')
-        print('DB path:', self.db_path)
         self.task_id = id
         self.data = data
         self.geometry = data['chosenGeometry']
         self.data_parser()
-        self.json_helper = JSONHelper(self.db_path)
-        self.json_helper.create_db(data)
+        self.json_helper = json_helper
         
     def set_geometry(self):
         if self.geometry == 'Waveguide':

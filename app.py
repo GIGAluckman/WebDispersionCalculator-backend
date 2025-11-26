@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import json
 import os
 from TetraxCalc import TetraxCalc
+from helpers import JSONHelper
 
 load_dotenv()
 host = os.getenv('FLASK_RUN_HOST')
@@ -19,8 +20,11 @@ def submit():
     data = request.json  # Get JSON data from the request
     
     task_id = data['id']
+    db_path = os.path.join('var', 'log', 'datastorage', f'{task_id}_db.json')
+    json_helper = JSONHelper(db_path)
+    json_helper.create_db(data)
     
-    txCalc = TetraxCalc(data, task_id)
+    txCalc = TetraxCalc(data, task_id, json_helper)
     if txCalc.data['chosenExperiment'] == 'Dispersion':
         dispersion, error = txCalc.calculate_dispersion()
         dispersion = dispersion.to_json(orient='columns')
@@ -37,15 +41,16 @@ def submit():
 # Route to check simulation status
 @app.route('/status/<task_id>', methods=['GET'])
 def status(task_id):
-    if os.path.exists(f'simulation_data/{task_id}/db.json'):
-        with open(f'simulation_data/{task_id}/db.json') as f:
-            data = json.load(f)        
-    else: 
+    try:
+        db_path = os.path.join('var', 'log', 'datastorage', f'{task_id}_db.json')
+        json_helper = JSONHelper(db_path)
+        data = json_helper.get_all_parameters()
+    except:
         return jsonify({"status": "Creating", "progress": 0, "error": 0})
     
-    status = data['data'].get('status', 'NA')
-    progress = data['data'].get('progress', 0)
-    error = data['data'].get('error', 0)
+    status = data.get('status', 'NA')
+    progress = data.get('progress', 0)
+    error = data.get('error', 0)
     return jsonify({"status": status, "progress": progress, "error": error})
 
 @app.route('/', methods=['GET'])
