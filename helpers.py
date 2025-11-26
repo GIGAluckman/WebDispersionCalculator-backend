@@ -26,3 +26,8 @@ class JSONHelper:
         with open(self.db_path) as f:
             data = json.load(f)
         return data['data'][name]
+    
+    def get_all_parameters(self):
+        with open(self.db_path) as f:
+            data = json.load(f)
+        return data['data']
