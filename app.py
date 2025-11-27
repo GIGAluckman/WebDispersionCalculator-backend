@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-import json
 import os
 from TetraxCalc import TetraxCalc
 from helpers import JSONHelper
+from datetime import datetime
 
 load_dotenv()
 host = os.getenv('FLASK_RUN_HOST')
@@ -17,7 +17,7 @@ CORS(app)  # Allow only your React app's origin
 # Route to accept form data from the frontend
 @app.route('/submit', methods=['POST'])
 def submit():
-    data = request.json  # Get JSON data from the request
+    data = request.json
     
     task_id = data['id']
     db_name = f'{task_id}_db.json'
@@ -60,6 +60,7 @@ def status(task_id):
     error = data.get('error', 0)
     return jsonify({"status": status, "progress": progress, "error": error})
 
+# Route to check if the server is running
 @app.route('/', methods=['GET'])
 def index():
     return jsonify({"message": "Welcome to the Web Dispersion Calculator backend!"})
