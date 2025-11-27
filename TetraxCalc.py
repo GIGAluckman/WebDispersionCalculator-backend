@@ -115,7 +115,8 @@ class TetraxCalc:
         
         self.json_helper.set_parameter('status', 'Dispersion calculation successful!')
         end_dispersion_time = time.time()
-        self.json_helper.set_parameter('time', end_dispersion_time - start_dispersion_time)
+        calc_time = round(end_dispersion_time - start_dispersion_time, 3)
+        self.json_helper.set_parameter('time', calc_time)
         return dispersion, 0
     
     def data_parser(self):
