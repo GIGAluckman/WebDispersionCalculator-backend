@@ -20,7 +20,9 @@ def submit():
     data = request.json  # Get JSON data from the request
     
     task_id = data['id']
-    db_path = os.path.join('var', 'log', 'datastorage', f'{task_id}_db.json')
+    db_name = f'{task_id}_db.json'
+    volume_path = 'datastorage'
+    db_path = os.path.join(volume_path, db_name)
     json_helper = JSONHelper(db_path)
     json_helper.create_db(data)
     
@@ -36,13 +38,18 @@ def submit():
     response = jsonify(response_data)
     response.headers.add('Access-Control-Allow-Origin', '*')
     
+    current_date_time = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    new_db_name = f"{current_date_time}_{task_id}_db.json"
+    new_db_path = os.path.join(volume_path, new_db_name)
+    os.rename(db_path, new_db_path)
+    
     return response
 
 # Route to check simulation status
 @app.route('/status/<task_id>', methods=['GET'])
 def status(task_id):
     try:
-        db_path = os.path.join('var', 'log', 'datastorage', f'{task_id}_db.json')
+        db_path = os.path.join('datastorage', f'{task_id}_db.json')
         json_helper = JSONHelper(db_path)
         data = json_helper.get_all_parameters()
     except:
