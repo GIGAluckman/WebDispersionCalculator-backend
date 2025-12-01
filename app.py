@@ -61,11 +61,6 @@ def status(task_id):
     error = data.get('error', 0)
     return jsonify({"status": status, "progress": progress, "error": error})
 
-# Route to check if the server is running
-@app.route('/', methods=['GET'])
-def index():
-    return jsonify({"message": "Welcome to the Web Dispersion Calculator backend!"})
-
 # Run the server
 if __name__ == '__main__':
     app.run(host=host, port=port, debug=True)
