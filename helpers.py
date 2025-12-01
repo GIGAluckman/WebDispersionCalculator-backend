@@ -11,11 +11,7 @@ except ImportError:
 
 class JSONHelper:
     def __init__(self, db_path):
-        # Create the DB file if it doesn't exist
         self.db_path = db_path
-        if not os.path.exists(self.db_path):
-            with open(self.db_path, "w", encoding="utf-8") as f:
-                json.dump({"data": {}}, f)
 
     @contextmanager
     def _locked_file(self, mode, lock_type):
