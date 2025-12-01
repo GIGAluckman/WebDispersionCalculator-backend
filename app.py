@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, abort
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
@@ -14,7 +14,32 @@ allowed_origins = [frontend_origin, "https://www.madivie.at"]
 volume_path = 'datastorage'
 
 app = Flask(__name__)
-CORS(app)  # Allow only your React app's origin
+CORS(app, resources={r"/*": {"origins": allowed_origins}})
+
+# Block invalid origins before processing the request
+@app.before_request
+def block_invalid_origin():
+    origin = request.headers.get('Origin')
+    url_path = request.headers.get('X-Forwarded-Path')
+
+    log_path = os.path.join(volume_path, 'invalid_origins.txt')
+    req_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    origin_to_log = origin if origin is not None else "None"
+    log_line = f"{req_time} - {origin_to_log} - {url_path} - "
+
+    if not os.path.exists(log_path):
+        with open(log_path, "w", encoding="utf-8") as f:
+            f.write("")
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(log_line)
+
+    if origin not in allowed_origins and origin is not None:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write("Blocked\n")
+        abort(403)
+    else:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write("Allowed\n")
 
 # Route to accept form data from the frontend
 @app.route('/submit', methods=['POST'])
