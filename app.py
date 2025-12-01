@@ -10,6 +10,8 @@ load_dotenv()
 host = os.getenv('FLASK_RUN_HOST')
 port = int(os.getenv('FLASK_RUN_PORT'))
 frontend_origin = os.getenv('FRONTEND_ORIGIN')
+allowed_origins = [frontend_origin, "https://www.madivie.at"]
+volume_path = 'datastorage'
 
 app = Flask(__name__)
 CORS(app)  # Allow only your React app's origin
@@ -21,7 +23,6 @@ def submit():
     
     task_id = data['id']
     db_name = f'{task_id}_db.json'
-    volume_path = 'datastorage'
     db_path = os.path.join(volume_path, db_name)
     json_helper = JSONHelper(db_path)
     json_helper.create_db(data)
@@ -49,7 +50,7 @@ def submit():
 @app.route('/status/<task_id>', methods=['GET'])
 def status(task_id):
     try:
-        db_path = os.path.join('datastorage', f'{task_id}_db.json')
+        db_path = os.path.join(volume_path, f'{task_id}_db.json')
         json_helper = JSONHelper(db_path)
         data = json_helper.get_all_parameters()
     except:
