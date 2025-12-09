@@ -25,21 +25,23 @@ def block_invalid_origin():
     log_path = os.path.join(volume_path, 'invalid_origins.txt')
     req_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     origin_to_log = origin if origin is not None else "None"
-    log_line = f"{req_time} - {origin_to_log} - {url_path} - "
 
     if not os.path.exists(log_path):
         with open(log_path, "w", encoding="utf-8") as f:
             f.write("")
-    with open(log_path, "a", encoding="utf-8") as f:
-        f.write(log_line)
 
+    block_line = 'None'
     if origin not in allowed_origins and origin is not None:
+        block_line = 'Blocked'
+        log_line = f"{req_time} - {origin_to_log} - {url_path} - {block_line}\n"
         with open(log_path, "a", encoding="utf-8") as f:
-            f.write("Blocked\n")
+            f.write(log_line)
         abort(403)
     else:
+        block_line = 'Allowed'
+        log_line = f"{req_time} - {origin_to_log} - {url_path} - {block_line}\n"
         with open(log_path, "a", encoding="utf-8") as f:
-            f.write("Allowed\n")
+            f.write(log_line)
 
 # Route to accept form data from the frontend
 @app.route('/submit', methods=['POST'])
