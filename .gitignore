@@ -1,6 +1,9 @@
 simulation_data/
+gunicorn.local.conf.py
 pygmsh/
 tetrax/
 __pycache__/
+datastorage/
 venv*/
-.env
+.env*
+*.sh

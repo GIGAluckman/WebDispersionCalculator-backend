@@ -1,11 +1,14 @@
 README.md
+gunicorn.local.conf.py
 venv*/
 __pycache__/
 simulation_data/
+datastorage/
 *.pyc
 *.pyo
 *.pyd
-.env
+*.sh
+.env*
 .DS_Store
 .git
 .gitignore
