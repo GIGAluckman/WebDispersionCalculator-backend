@@ -4,6 +4,7 @@ venv*/
 __pycache__/
 simulation_data/
 datastorage/
+bash_scripts/
 *.pyc
 *.pyo
 *.pyd

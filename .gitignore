@@ -7,3 +7,4 @@ datastorage/
 venv*/
 .env*
 *.sh
+bash_scripts/
