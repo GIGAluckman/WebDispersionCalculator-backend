@@ -22,7 +22,7 @@ def block_invalid_origin():
     origin = request.headers.get('Origin')
     url_path = request.headers.get('X-Forwarded-Path')
 
-    log_path = os.path.join(volume_path, 'invalid_origins.txt')
+    log_path = os.path.join(volume_path, 'requests_log.txt')
     req_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     origin_to_log = origin if origin is not None else "None"
 
