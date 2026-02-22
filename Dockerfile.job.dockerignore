@@ -1,17 +1,13 @@
-# Flask app .dockerignore
+# Job runner .dockerignore
 
-# Exclude simulation packages (not needed for Flask)
-pygmsh/
-tetrax/
-
-# Exclude job-specific files
-job_runner.py
-requirements.job.txt
-Dockerfile.job
-Dockerfile.job.dockerignore
+# Exclude Flask-specific files
+app.py
+gunicorn.conf.py
+gunicorn.local.conf.py
+requirements.txt
+Dockerfile
 
 # Exclude local/dev configs
-gunicorn.local.conf.py
 venv*/
 __pycache__/
 

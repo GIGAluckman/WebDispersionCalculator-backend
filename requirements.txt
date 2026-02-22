@@ -1,7 +1,6 @@
-./pygmsh
-./tetrax
-
 flask==3.1.0
 flask_cors==5.0.0
 python-dotenv==1.0.1
 gunicorn==23.0.0
+azure-servicebus==7.14.3
+pandas>=2.2.3

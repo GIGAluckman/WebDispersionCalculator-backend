@@ -1,12 +1,12 @@
-# Use Python 3.11 slim image
 FROM --platform=linux/amd64 python:3.11-slim
 
-# Label the image
 LABEL version="1.0.0"
 
 # Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+        build-essential \
+        python3-gmsh \
         curl && \
     rm -rf /var/lib/apt/lists/*
 
@@ -18,16 +18,11 @@ COPY . .
 
 # Create virtual environment
 RUN python -m venv venv
-
-# Activate virtual environment
 ENV PATH="/app/venv/bin:$PATH"
 
-# Upgrade pip and install dependencies
+# Install dependencies
 RUN pip install --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.job.txt
 
-# Expose port for Azure Container App
-EXPOSE 80
-
-# Run the backend with Gunicorn using external config
-CMD ["gunicorn", "app:app"]
+# Run job runner
+CMD ["python", "job_runner.py"]
