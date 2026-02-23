@@ -43,10 +43,9 @@ class JSONHelper:
             return {"data": {}}
 
     def create_db(self, data):
-        # Create the DB file with the initial data
-        data["status"] = "Pending"
-        data["error"] = 0
-        data["progress"] = 0
+        data.setdefault("status", "Pending")
+        data.setdefault("error", 0)
+        data.setdefault("progress", 0)
         data_to_json = {"data": data}
 
         with open(self.db_path, "w", encoding="utf-8") as f:

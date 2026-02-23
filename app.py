@@ -80,7 +80,7 @@ def start():
     json_helper = JSONHelper(db_path)
     
     # Initialize status
-    data["status"] = "Pending"
+    data["status"] = "Spinning up a container... (needs about 30 seconds)"
     data["error"] = 0
     data["progress"] = 0
     json_helper.create_db(data)
