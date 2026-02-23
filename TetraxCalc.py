@@ -3,10 +3,12 @@ import os
 import time
 from df_manipulation import *
 
+SIMULATION_DATA_PATH = os.getenv('SIMULATION_DATA_PATH', 'simulation_data')
+
 class TetraxCalc:
     def __init__(self, data, id, json_helper):
         
-        simulation_path = os.path.join('simulation_data', str(id))
+        simulation_path = os.path.join(SIMULATION_DATA_PATH, str(id))
         if not os.path.exists(simulation_path):
             os.makedirs(simulation_path)
         
@@ -37,7 +39,7 @@ class TetraxCalc:
                 cell_size=int(self.data.get('dRadius', 5)),
             )
         
-        self.sample = tx.Sample(mesh, name=os.path.join('simulation_data', str(self.task_id)))
+        self.sample = tx.Sample(mesh, name=os.path.join(SIMULATION_DATA_PATH, str(self.task_id)))
         
     def set_material(self):
         self.sample.material['Msat'] = float(self.data['saturationMagnetization'])

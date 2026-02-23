@@ -1,4 +1,7 @@
 import numpy as np
+import os
+
+SIMULATION_DATA_PATH = os.getenv('SIMULATION_DATA_PATH', 'simulation_data')
 
 def group_velocity(dispersion):
     dk = np.diff(dispersion['k (rad/m)'])
@@ -56,5 +59,5 @@ def dataframe_polish(dispersion, kmin, kmax, task_id):
             dispersion[col] = dispersion[col] / 1e9
             dispersion.rename(columns={col: col.replace('Hz', 'GHz')}, inplace=True)
             
-    dispersion.to_csv(f'simulation_data/{task_id}/dispersion_data.csv')
+    dispersion.to_csv(os.path.join(SIMULATION_DATA_PATH, str(task_id), 'dispersion_data.csv'))
     return dispersion
