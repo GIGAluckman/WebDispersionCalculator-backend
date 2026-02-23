@@ -1,5 +1,7 @@
 import json
 import os
+import time
+import random
 from contextlib import contextmanager
 
 # fcntl is not available on Windows
@@ -8,6 +10,13 @@ try:
 except ImportError:
     fcntl = None
 
+# Azure Files (SMB) doesn't support POSIX file locking properly
+# Disable fcntl locking when running on Azure Files
+USE_FILE_LOCKING = os.getenv('USE_FILE_LOCKING', 'false').lower() == 'true'
+
+MAX_RETRIES = 5
+BASE_DELAY = 0.1
+
 
 class JSONHelper:
     def __init__(self, db_path):
@@ -15,18 +24,16 @@ class JSONHelper:
 
     @contextmanager
     def _locked_file(self, mode, lock_type):
-        # Open the DB file and guard it with a POSIX file lock while in scope.
         with open(self.db_path, mode, encoding="utf-8") as fh:
-            if fcntl is not None and lock_type is not None:
+            if USE_FILE_LOCKING and fcntl is not None and lock_type is not None:
                 fcntl.flock(fh.fileno(), lock_type)
             try:
                 yield fh
             finally:
-                if fcntl is not None and lock_type is not None:
+                if USE_FILE_LOCKING and fcntl is not None and lock_type is not None:
                     fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
     def _safe_load(self, fh):
-        # Load the JSON file and return the data
         fh.seek(0)
         payload = fh.read()
         if not payload:
@@ -53,27 +60,40 @@ class JSONHelper:
         print(f"Database created at: {self.db_path}")
 
     def set_parameter(self, name, value):
-        # Set a parameter in the DB file
-        lock = fcntl.LOCK_EX if fcntl is not None else None
-        with self._locked_file("r+", lock) as fh:
-            data = self._safe_load(fh)
-            data.setdefault("data", {})
-            data["data"][name] = value
-            fh.seek(0)
-            json.dump(data, fh, ensure_ascii=False, indent=4)
-            fh.truncate()
-            fh.flush()
+        last_error = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                lock = fcntl.LOCK_EX if (USE_FILE_LOCKING and fcntl is not None) else None
+                with self._locked_file("r+", lock) as fh:
+                    data = self._safe_load(fh)
+                    data.setdefault("data", {})
+                    data["data"][name] = value
+                    fh.seek(0)
+                    json.dump(data, fh, ensure_ascii=False, indent=4)
+                    fh.truncate()
+                    fh.flush()
+                return
+            except PermissionError as e:
+                last_error = e
+                delay = BASE_DELAY * (2 ** attempt) + random.uniform(0, 0.1)
+                time.sleep(delay)
+            except Exception as e:
+                last_error = e
+                break
+        
+        if name == 'progress':
+            print(f"Warning: Could not update progress after {MAX_RETRIES} retries: {last_error}")
+        else:
+            raise last_error
 
     def get_parameter(self, name):
-        # Get a parameter from the DB file
-        lock = fcntl.LOCK_SH if fcntl is not None else None
+        lock = fcntl.LOCK_SH if (USE_FILE_LOCKING and fcntl is not None) else None
         with self._locked_file("r", lock) as fh:
             data = self._safe_load(fh)
         return data["data"][name]
 
     def get_all_parameters(self):
-        # Get all parameters from the DB file
-        lock = fcntl.LOCK_SH if fcntl is not None else None
+        lock = fcntl.LOCK_SH if (USE_FILE_LOCKING and fcntl is not None) else None
         with self._locked_file("r", lock) as fh:
             data = self._safe_load(fh)
         return data["data"]
