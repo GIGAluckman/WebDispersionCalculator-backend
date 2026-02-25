@@ -8,7 +8,7 @@ import json
 import sys
 import traceback
 from dotenv import load_dotenv
-from azure.servicebus import ServiceBusClient, ServiceBusReceiveMode
+from azure.servicebus import ServiceBusClient, ServiceBusReceiveMode, AutoLockRenewer
 from TetraxCalc import TetraxCalc
 from helpers import JSONHelper
 
@@ -22,6 +22,7 @@ simulation_data_path = os.getenv('SIMULATION_DATA_PATH', 'simulation_data')
 
 MAX_MESSAGES_PER_RUN = 5
 RECEIVE_TIMEOUT_SECONDS = 10
+MESSAGE_LOCK_RENEWAL_DURATION = 600 # replica timeout is 600s
 
 
 def process_simulation(task_id):
@@ -97,48 +98,49 @@ def main():
     
     try:
         with ServiceBusClient.from_connection_string(service_bus_connection_string) as client:
-            with client.get_queue_receiver(
-                queue_name=service_bus_queue_name,
-                receive_mode=ServiceBusReceiveMode.PEEK_LOCK,
-                max_wait_time=RECEIVE_TIMEOUT_SECONDS
-            ) as receiver:
-                
-                print(f"Waiting for messages (timeout: {RECEIVE_TIMEOUT_SECONDS}s)...")
-                
-                for message in receiver:
-                    if messages_processed >= MAX_MESSAGES_PER_RUN:
-                        print(f"Reached max messages per run ({MAX_MESSAGES_PER_RUN}), exiting.")
-                        break
+            with AutoLockRenewer(max_lock_renewal_duration=MESSAGE_LOCK_RENEWAL_DURATION) as renewer:
+                with client.get_queue_receiver(
+                    queue_name=service_bus_queue_name,
+                    receive_mode=ServiceBusReceiveMode.PEEK_LOCK,
+                    max_wait_time=RECEIVE_TIMEOUT_SECONDS,
+                    auto_lock_renewer=renewer
+                ) as receiver:
+                    print(f"Waiting for messages (timeout: {RECEIVE_TIMEOUT_SECONDS}s)...")
                     
-                    try:
-                        message_body = str(message)
-                        print(f"Raw message: {message_body[:200]}")
+                    for message in receiver:
+                        if messages_processed >= MAX_MESSAGES_PER_RUN:
+                            print(f"Reached max messages per run ({MAX_MESSAGES_PER_RUN}), exiting.")
+                            break
                         
-                        message_data = json.loads(message_body)
-                        task_id = message_data.get('task_id')
-                        
-                        if not task_id:
-                            print(f"Invalid message format (no task_id): {message_body}")
+                        try:
+                            message_body = str(message)
+                            print(f"Raw message: {message_body[:200]}")
+                            
+                            message_data = json.loads(message_body)
+                            task_id = message_data.get('task_id')
+                            
+                            if not task_id:
+                                print(f"Invalid message format (no task_id): {message_body}")
+                                receiver.complete_message(message)
+                                continue
+                            
+                            print(f"Processing task: {task_id}")
+                            process_simulation(task_id)
+                            
                             receiver.complete_message(message)
-                            continue
-                        
-                        print(f"Processing task: {task_id}")
-                        process_simulation(task_id)
-                        
-                        receiver.complete_message(message)
-                        messages_processed += 1
-                        print(f"Completed task {task_id} ({messages_processed} processed)")
-                        
-                    except json.JSONDecodeError as e:
-                        print(f"Error parsing message JSON: {e}")
-                        print(f"Message body was: {message_body[:500]}")
-                        receiver.complete_message(message)
-                    except Exception as e:
-                        print(f"Error processing message: {e}")
-                        traceback.print_exc()
-                        receiver.abandon_message(message)
-                
-                print(f"No more messages available (or timeout reached)")
+                            messages_processed += 1
+                            print(f"Completed task {task_id} ({messages_processed} processed)")
+                            
+                        except json.JSONDecodeError as e:
+                            print(f"Error parsing message JSON: {e}")
+                            print(f"Message body was: {message_body[:500]}")
+                            receiver.complete_message(message)
+                        except Exception as e:
+                            print(f"Error processing message: {e}")
+                            traceback.print_exc()
+                            receiver.abandon_message(message)
+                    
+                    print(f"No more messages available (or timeout reached)")
                         
     except Exception as e:
         print(f"Fatal error: {e}")
