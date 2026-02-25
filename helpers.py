@@ -42,10 +42,14 @@ class JSONHelper:
             fh.seek(0)
             return json.loads(payload)
         except json.JSONDecodeError:
-            fh.seek(0)
-            fh.truncate()
-            json.dump({"data": {}}, fh, ensure_ascii=False, indent=4)
-            fh.flush()
+            try:
+                fh.seek(0)
+                fh.truncate()
+                json.dump({"data": {}}, fh, ensure_ascii=False, indent=4)
+                fh.flush()
+            except OSError:
+                # if truncate is not supported, cannot repair
+                pass
             fh.seek(0)
             return {"data": {}}
 
@@ -88,12 +92,12 @@ class JSONHelper:
 
     def get_parameter(self, name):
         lock = fcntl.LOCK_SH if (USE_FILE_LOCKING and fcntl is not None) else None
-        with self._locked_file("r", lock) as fh:
+        with self._locked_file("r+", lock) as fh:
             data = self._safe_load(fh)
         return data["data"][name]
 
     def get_all_parameters(self):
         lock = fcntl.LOCK_SH if (USE_FILE_LOCKING and fcntl is not None) else None
-        with self._locked_file("r", lock) as fh:
+        with self._locked_file("r+", lock) as fh:
             data = self._safe_load(fh)
         return data["data"]
