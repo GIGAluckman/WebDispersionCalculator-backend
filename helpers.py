@@ -38,20 +38,16 @@ class JSONHelper:
         payload = fh.read()
         if not payload:
             return {"data": {}}
-        try:
-            fh.seek(0)
-            return json.loads(payload)
-        except json.JSONDecodeError:
+        for attempt in range(2):  # Retry once on transient read corruption
             try:
-                fh.seek(0)
-                fh.truncate()
-                json.dump({"data": {}}, fh, ensure_ascii=False, indent=4)
-                fh.flush()
-            except OSError:
-                # if truncate is not supported, cannot repair
-                pass
-            fh.seek(0)
-            return {"data": {}}
+                return json.loads(payload)
+            except json.JSONDecodeError:
+                if attempt == 0:
+                    fh.seek(0)
+                    payload = fh.read()  # Retry read (may have caught mid-write)
+                else:
+                    # Do NOT overwrite
+                    return {"data": {}}
 
     def create_db(self, data):
         data.setdefault("status", "Pending")
