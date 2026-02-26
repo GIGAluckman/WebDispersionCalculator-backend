@@ -3,12 +3,16 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 import json
+import subprocess
+import sys
 import pandas as pd
 from azure.servicebus import ServiceBusClient, ServiceBusMessage
 from helpers import JSONHelper
 from datetime import datetime
 
 load_dotenv()
+_env_local = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env.local')
+load_dotenv(_env_local)  # Override for local dev (no Service Bus → job runs as subprocess)
 host = os.getenv('FLASK_RUN_HOST')
 port = int(os.getenv('FLASK_RUN_PORT'))
 frontend_origin = os.getenv('FRONTEND_ORIGIN')
@@ -68,6 +72,30 @@ def send_to_service_bus(task_id):
         print(f"Error sending message to Service Bus: {e}")
         return False
 
+
+def run_job_locally(task_id):
+    """
+    Spawn the simulation job as a subprocess (local dev mode).
+    Used when AZURE_SERVICE_BUS_CONNECTION_STRING is not set.
+    """
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    job_script = os.path.join(backend_dir, 'job_runner.py')
+    env = os.environ.copy()
+    env.setdefault('VOLUME_PATH', volume_path)
+    env.setdefault('SIMULATION_DATA_PATH', simulation_data_path)
+    try:
+        subprocess.Popen(
+            [sys.executable, job_script, task_id],
+            cwd=backend_dir,
+            env=env,
+            # Inherit stdout/stderr so job output is visible in the Flask terminal
+        )
+        print(f"[Local dev] Spawned simulation job for task {task_id}")
+        return True
+    except Exception as e:
+        print(f"[Local dev] Error spawning job: {e}")
+        return False
+
 # Route to start simulation (receptionist pattern)
 @app.route('/start', methods=['POST'])
 def start():
@@ -85,8 +113,9 @@ def start():
     data["progress"] = 0
     json_helper.create_db(data)
     
-    # Send message to Service Bus Queue
-    send_to_service_bus(task_id)
+    # Send message to Service Bus Queue, or run job locally if not configured
+    if not send_to_service_bus(task_id):
+        run_job_locally(task_id)
     
     response = jsonify({"status": "accepted", "task_id": task_id})
     response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))

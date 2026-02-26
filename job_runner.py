@@ -13,6 +13,8 @@ from TetraxCalc import TetraxCalc
 from helpers import JSONHelper
 
 load_dotenv()
+_env_local = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env.local')
+load_dotenv(_env_local)  # Override for local dev
 
 # Configuration
 service_bus_connection_string = os.getenv('AZURE_SERVICE_BUS_CONNECTION_STRING')
@@ -25,7 +27,7 @@ RECEIVE_TIMEOUT_SECONDS = 10
 MESSAGE_LOCK_RENEWAL_DURATION = 600 # replica timeout is 600s
 
 
-def process_simulation(task_id):
+def process_simulation(task_id, num_cpus=-1):
     """Process a simulation job."""
     print(f"Starting simulation for task {task_id}")
     
@@ -38,7 +40,7 @@ def process_simulation(task_id):
         json_helper.set_parameter('status', 'Job started')
         json_helper.set_parameter('progress', 0)
         
-        txCalc = TetraxCalc(data, task_id, json_helper)
+        txCalc = TetraxCalc(data, task_id, json_helper, num_cpus=num_cpus)
         
         if txCalc.data['chosenExperiment'] == 'Dispersion':
             dispersion, error = txCalc.calculate_dispersion()
@@ -77,22 +79,25 @@ def main():
     Receives messages from Service Bus, processes them, and exits.
     KEDA triggers new job instances when messages arrive.
     """
+    # One-shot mode for local dev / manual testing (no Service Bus required)
+    if len(sys.argv) > 1:
+        task_id = sys.argv[1]
+        print(f"Running in one-shot mode for task: {task_id}")
+        print(f"Volume path: {volume_path}")
+        print(f"Simulation data path: {simulation_data_path}")
+        process_simulation(task_id, num_cpus=1)
+        print("One-shot job completed, exiting.")
+        return
+
+    # Service Bus mode (Azure)
     if not service_bus_connection_string:
         print("Error: AZURE_SERVICE_BUS_CONNECTION_STRING environment variable not set")
         sys.exit(1)
-    
+
     print(f"Job started - Event-driven mode")
     print(f"Service Bus Queue: {service_bus_queue_name}")
     print(f"Volume path: {volume_path}")
     print(f"Simulation data path: {simulation_data_path}")
-    
-    # One-shot mode for manual testing
-    if len(sys.argv) > 1:
-        task_id = sys.argv[1]
-        print(f"Running in one-shot mode for task: {task_id}")
-        process_simulation(task_id)
-        print("One-shot job completed, exiting.")
-        return
     
     messages_processed = 0
     

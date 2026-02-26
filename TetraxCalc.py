@@ -6,7 +6,7 @@ from df_manipulation import *
 SIMULATION_DATA_PATH = os.getenv('SIMULATION_DATA_PATH', 'simulation_data')
 
 class TetraxCalc:
-    def __init__(self, data, id, json_helper):
+    def __init__(self, data, id, json_helper, num_cpus=-1):
         
         simulation_path = os.path.join(SIMULATION_DATA_PATH, str(id))
         if not os.path.exists(simulation_path):
@@ -15,6 +15,7 @@ class TetraxCalc:
         self.task_id = id
         self.data = data
         self.geometry = data['chosenGeometry']
+        self.num_cpus = num_cpus
         self.data_parser()
         self.json_helper = json_helper
         
@@ -93,7 +94,7 @@ class TetraxCalc:
         dispersion = tx.experiments.eigenmodes(
             sample=self.sample,
             db_helper=self.json_helper,
-            num_cpus=-1,
+            num_cpus=self.num_cpus,
             num_modes=int(self.data['numberOfModes']),
             kmin=self.data['kMin'] * 1e6,
             kmax=self.data['kMax'] * 1e6, 
