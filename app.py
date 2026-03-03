@@ -58,25 +58,25 @@ def block_invalid_origin():
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(log_line)
 
-def send_to_service_bus(task_id):
+def send_to_service_bus(simulation_id):
     """Send a message to Service Bus Queue to trigger the simulation job."""
     if not service_bus_connection_string:
-        print(f"Warning: Service Bus connection string not configured. Task {task_id} will not be processed.")
+        print(f"Warning: Service Bus connection string not configured. Simulation {simulation_id} will not be processed.")
         return False
     
     try:
         with ServiceBusClient.from_connection_string(service_bus_connection_string) as client:
             with client.get_queue_sender(queue_name=service_bus_queue_name) as sender:
-                message = ServiceBusMessage(json.dumps({"task_id": task_id}))
+                message = ServiceBusMessage(json.dumps({"simulation_id": simulation_id}))
                 sender.send_messages(message)
-                print(f"Message sent to Service Bus Queue for task {task_id}")
+                print(f"Message sent to Service Bus Queue for simulation {simulation_id}")
                 return True
     except Exception as e:
         print(f"Error sending message to Service Bus: {e}")
         return False
 
 
-def run_job_locally(task_id):
+def run_job_locally(simulation_id):
     """
     Spawn the simulation job as a subprocess (local dev mode).
     Used when AZURE_SERVICE_BUS_CONNECTION_STRING is not set.
@@ -88,12 +88,12 @@ def run_job_locally(task_id):
     env.setdefault('SIMULATION_DATA_PATH', simulation_data_path)
     try:
         subprocess.Popen(
-            [sys.executable, job_script, task_id],
+            [sys.executable, job_script, simulation_id],
             cwd=backend_dir,
             env=env,
             # Inherit stdout/stderr so job output is visible in the Flask terminal
         )
-        print(f"[Local dev] Spawned simulation job for task {task_id}")
+        print(f"[Local dev] Spawned simulation job for simulation {simulation_id}")
         return True
     except Exception as e:
         print(f"[Local dev] Error spawning job: {e}")
@@ -105,8 +105,8 @@ def start():
     """Receive form data, save to Azure Files, send to Service Bus, return immediately."""
     data = request.json
     
-    task_id = data['id']
-    db_name = f'{task_id}_db.json'
+    simulation_id = data['id']
+    db_name = f'{simulation_id}_db.json'
     db_path = os.path.join(volume_path, db_name)
     json_helper = JSONHelper(db_path)
     
@@ -117,24 +117,24 @@ def start():
     json_helper.create_db(data)
     
     # Send message to Service Bus Queue, or run job locally if not configured
-    if not send_to_service_bus(task_id):
-        run_job_locally(task_id)
+    if not send_to_service_bus(simulation_id):
+        run_job_locally(simulation_id)
     
-    response = jsonify({"status": "accepted", "task_id": task_id})
+    response = jsonify({"status": "accepted", "simulation_id": simulation_id})
     response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))
     
     return response
 
 # Route to check simulation status
-@app.route('/status/<task_id>', methods=['GET'])
-def status(task_id):
+@app.route('/status/<simulation_id>', methods=['GET'])
+def status(simulation_id):
     """Check simulation status from Azure Files."""
     try:
-        db_path = os.path.join(volume_path, f'{task_id}_db.json')
+        db_path = os.path.join(volume_path, f'{simulation_id}_db.json')
         json_helper = JSONHelper(db_path)
         data = json_helper.get_all_parameters()
     except Exception as e:
-        print(f"Error reading status for {task_id}: {e}")
+        print(f"Error reading status for {simulation_id}: {e}")
         return jsonify({"status": "Creating", "progress": 0, "error": 0})
     
     status_value = data.get('status', 'NA')
@@ -142,7 +142,7 @@ def status(task_id):
     error = data.get('error', 0)
     
     # Check if result file exists to determine completion
-    result_file = os.path.join(simulation_data_path, task_id, 'dispersion_data.csv')
+    result_file = os.path.join(simulation_data_path, simulation_id, 'dispersion_data.csv')
     completed = os.path.exists(result_file) and (
         status_value == "Dispersion calculation successful!" or 
         status_value == "Completed" or
@@ -157,12 +157,12 @@ def status(task_id):
     })
 
 # Route to retrieve simulation result
-@app.route('/result/<task_id>', methods=['GET'])
-def result(task_id):
+@app.route('/result/<simulation_id>', methods=['GET'])
+def result(simulation_id):
     """Retrieve simulation result from Azure Files."""
     try:
         # Check if result file exists
-        result_file = os.path.join(simulation_data_path, task_id, 'dispersion_data.csv')
+        result_file = os.path.join(simulation_data_path, simulation_id, 'dispersion_data.csv')
         
         if not os.path.exists(result_file):
             return jsonify({"error": "Result not available yet", "errorId": 0}), 202
@@ -172,7 +172,7 @@ def result(task_id):
         dispersion_json = df.to_json(orient='columns')
         
         # Get error status from database
-        db_path = os.path.join(volume_path, f'{task_id}_db.json')
+        db_path = os.path.join(volume_path, f'{simulation_id}_db.json')
         json_helper = JSONHelper(db_path)
         data = json_helper.get_all_parameters()
         error_id = data.get('error', 0)
@@ -189,7 +189,7 @@ def result(task_id):
         return response
         
     except Exception as e:
-        print(f"Error retrieving result for {task_id}: {e}")
+        print(f"Error retrieving result for {simulation_id}: {e}")
         return jsonify({"error": str(e), "errorId": 99}), 500
 
 

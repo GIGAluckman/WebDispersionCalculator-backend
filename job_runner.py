@@ -27,12 +27,12 @@ RECEIVE_TIMEOUT_SECONDS = 10
 MESSAGE_LOCK_RENEWAL_DURATION = 600 # replica timeout is 600s
 
 
-def process_simulation(task_id, num_cpus=-1):
+def process_simulation(simulation_id, num_cpus=-1):
     """Process a simulation job."""
-    print(f"Starting simulation for task {task_id}")
+    print(f"Starting simulation for {simulation_id}")
     
     try:
-        db_name = f'{task_id}_db.json'
+        db_name = f'{simulation_id}_db.json'
         db_path = os.path.join(volume_path, db_name)
         json_helper = JSONHelper(db_path)
         data = json_helper.get_all_parameters()
@@ -40,7 +40,7 @@ def process_simulation(task_id, num_cpus=-1):
         json_helper.set_parameter('status', 'Job started')
         json_helper.set_parameter('progress', 0)
         
-        txCalc = TetraxCalc(data, task_id, json_helper, num_cpus=num_cpus)
+        txCalc = TetraxCalc(data, simulation_id, json_helper, num_cpus=num_cpus)
         
         if txCalc.data['chosenExperiment'] == 'Dispersion':
             dispersion, error = txCalc.calculate_dispersion()
@@ -49,22 +49,22 @@ def process_simulation(task_id, num_cpus=-1):
                 json_helper.set_parameter('status', 'Completed')
                 json_helper.set_parameter('progress', 1)
                 json_helper.set_parameter('error', 0)
-                print(f"Simulation completed successfully for task {task_id}")
+                print(f"Simulation completed successfully for {simulation_id}")
             else:
                 json_helper.set_parameter('status', 'Completed with errors')
                 json_helper.set_parameter('error', error)
-                print(f"Simulation completed with error {error} for task {task_id}")
+                print(f"Simulation completed with error {error} for {simulation_id}")
         else:
             json_helper.set_parameter('status', 'Experiment type not supported')
             json_helper.set_parameter('error', 3)
-            print(f"Unsupported experiment type for task {task_id}")
+            print(f"Unsupported experiment type for {simulation_id}")
             
     except Exception as e:
-        print(f"Error processing simulation for task {task_id}: {e}")
+        print(f"Error processing simulation for {simulation_id}: {e}")
         traceback.print_exc()
         
         try:
-            db_name = f'{task_id}_db.json'
+            db_name = f'{simulation_id}_db.json'
             db_path = os.path.join(volume_path, db_name)
             json_helper = JSONHelper(db_path)
             json_helper.set_parameter('status', f'Error: {str(e)}')
@@ -81,11 +81,11 @@ def main():
     """
     # One-shot mode for local dev / manual testing (no Service Bus required)
     if len(sys.argv) > 1:
-        task_id = sys.argv[1]
-        print(f"Running in one-shot mode for task: {task_id}")
+        simulation_id = sys.argv[1]
+        print(f"Running in one-shot mode for simulation: {simulation_id}")
         print(f"Volume path: {volume_path}")
         print(f"Simulation data path: {simulation_data_path}")
-        process_simulation(task_id, num_cpus=1)
+        process_simulation(simulation_id, num_cpus=1)
         print("One-shot job completed, exiting.")
         return
 
@@ -122,19 +122,19 @@ def main():
                             print(f"Raw message: {message_body[:200]}")
                             
                             message_data = json.loads(message_body)
-                            task_id = message_data.get('task_id')
+                            simulation_id = message_data.get('simulation_id')
                             
-                            if not task_id:
-                                print(f"Invalid message format (no task_id): {message_body}")
+                            if not simulation_id:
+                                print(f"Invalid message format (no simulation_id): {message_body}")
                                 receiver.complete_message(message)
                                 continue
                             
-                            print(f"Processing task: {task_id}")
-                            process_simulation(task_id)
+                            print(f"Processing simulation: {simulation_id}")
+                            process_simulation(simulation_id)
                             
                             receiver.complete_message(message)
                             messages_processed += 1
-                            print(f"Completed task {task_id} ({messages_processed} processed)")
+                            print(f"Completed simulation {simulation_id} ({messages_processed} processed)")
                             
                         except json.JSONDecodeError as e:
                             print(f"Error parsing message JSON: {e}")
