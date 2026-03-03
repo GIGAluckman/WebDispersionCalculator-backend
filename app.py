@@ -5,6 +5,9 @@ import os
 import json
 import subprocess
 import sys
+import numpy as np
+import meshio
+from scipy.interpolate import griddata
 import pandas as pd
 from azure.servicebus import ServiceBusClient, ServiceBusMessage
 from helpers import JSONHelper
@@ -174,9 +177,11 @@ def result(task_id):
         data = json_helper.get_all_parameters()
         error_id = data.get('error', 0)
         
+        number_of_modes = data.get('numberOfModes', 3)
         response_data = {
             'dispersion': json.loads(dispersion_json),
-            'errorId': error_id
+            'errorId': error_id,
+            'numberOfModes': int(number_of_modes)
         }
         
         response = jsonify(response_data)
@@ -186,6 +191,76 @@ def result(task_id):
     except Exception as e:
         print(f"Error retrieving result for {task_id}: {e}")
         return jsonify({"error": str(e), "errorId": 99}), 500
+
+
+# Route to retrieve mode profile (meshio preprocessing, first component only)
+@app.route('/get_mode_profile/<simulation_id>/<int:mode_num>/', methods=['GET'])
+def get_mode_profile(simulation_id, mode_num):
+    """Retrieve mode profile for k=0: preprocess VTK with meshio, return first magnetization component for 2D plot."""
+    try:
+        db_path = os.path.join(volume_path, f'{simulation_id}_db.json')
+        json_helper = JSONHelper(db_path)
+        data = json_helper.get_all_parameters()
+        number_of_modes = int(data.get('numberOfModes', 3))
+    except Exception as e:
+        print(f"Error reading db for {simulation_id}: {e}")
+        return jsonify({"error": "Simulation not found"}), 404
+
+    if mode_num < 0 or mode_num >= number_of_modes:
+        return jsonify({"error": f"mode must be between 0 and {number_of_modes - 1}"}), 400
+
+    mode_profiles_dir = os.path.join(simulation_data_path, simulation_id, 'eigen', 'mode_profiles')
+    vtk_filename = f'mode_k0.0radperm_m0.0_{mode_num:03d}.vtk'
+    vtk_path = os.path.join(mode_profiles_dir, vtk_filename)
+
+    if not os.path.exists(vtk_path):
+        return jsonify({"error": f"Mode profile not found: {vtk_filename}"}), 404
+
+    try:
+        mode = meshio.read(vtk_path)
+    except Exception as e:
+        print(f"Error reading VTK for {simulation_id} mode {mode_num}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+    if 'Re(m)' not in mode.point_data:
+        return jsonify({"error": "VTK file missing point_data 'Re(m)'"}), 500
+
+    triangles = None
+    for cell_block in mode.cells:
+        if cell_block.type == 'triangle':
+            triangles = cell_block.data
+            break
+    if triangles is None:
+        try:
+            triangles = mode.get_cells_type('triangle')
+        except Exception:
+            pass
+    if triangles is None:
+        return jsonify({"error": "VTK file has no triangle cells"}), 500
+
+    points = mode.points
+    re_m = mode.point_data['Re(m)']
+    values = np.asarray(re_m[:, 0], dtype=float) * 1e3
+
+    xy = points[:, :2]
+
+    x_min, x_max = xy[:, 0].min(), xy[:, 0].max()
+    y_min, y_max = xy[:, 1].min(), xy[:, 1].max()
+    n_grid = 80
+    xi = np.linspace(x_min, x_max, n_grid)
+    yi = np.linspace(y_min, y_max, n_grid)
+    Xi, Yi = np.meshgrid(xi, yi)
+    Zi = griddata(xy, values, (Xi, Yi), method='cubic', fill_value=np.nan)
+    Zi = np.where(np.isnan(Zi), 0, Zi)
+    response_data = {
+        'x': xi.tolist(),
+        'y': yi.tolist(),
+        'z': Zi.tolist(),
+    }
+    response = jsonify(response_data)
+    response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))
+    return response
+
 
 # Run the server
 if __name__ == '__main__':

@@ -4,3 +4,6 @@ python-dotenv==1.0.1
 gunicorn==23.0.0
 azure-servicebus==7.14.3
 pandas>=2.2.3
+meshio>=5.0
+numpy>=1.20
+scipy>=1.9
