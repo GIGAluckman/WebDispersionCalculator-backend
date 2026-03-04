@@ -240,7 +240,8 @@ def get_mode_profile():
         response_data = process_mode_profile_wire(mode, component_index, db_data)
     if 'error' in response_data:
         return jsonify(response_data), 500
-    
+
+    response_data['geometry_type'] = geometry_type
     response = jsonify(response_data)
     response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))
     return response
