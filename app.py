@@ -224,7 +224,10 @@ def get_mode_profile():
     vtk_path = os.path.join(mode_profiles_dir, vtk_filename)
 
     if not os.path.exists(vtk_path):
-        return jsonify({"error": f"Mode profile not found: {vtk_filename}"}), 404
+        return jsonify({
+            "error": f"Mode profile not found: {vtk_filename}",
+            "path": vtk_path,
+        }), 404
 
     try:
         mode = meshio.read(vtk_path)
@@ -245,6 +248,32 @@ def get_mode_profile():
     response = jsonify(response_data)
     response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))
     return response
+
+
+# Diagnostic endpoint for volume/storage debugging
+@app.route('/debug/volumes', methods=['GET'])
+def debug_volumes():
+    """Return resolved paths and basic volume info for debugging."""
+    sim_id = request.args.get('simulation_id', '')
+    info = {
+        "volume_path": volume_path,
+        "simulation_data_path": simulation_data_path,
+        "volume_path_exists": os.path.isdir(volume_path),
+        "simulation_data_path_exists": os.path.isdir(simulation_data_path),
+    }
+    if sim_id:
+        sim_dir = os.path.join(simulation_data_path, sim_id)
+        eigen_dir = os.path.join(sim_dir, 'eigen', 'mode_profiles')
+        info["simulation_dir"] = sim_dir
+        info["simulation_dir_exists"] = os.path.isdir(sim_dir)
+        info["mode_profiles_dir"] = eigen_dir
+        info["mode_profiles_dir_exists"] = os.path.isdir(eigen_dir)
+        if os.path.isdir(eigen_dir):
+            try:
+                info["mode_profiles_files"] = sorted(os.listdir(eigen_dir))[:30]
+            except OSError as e:
+                info["mode_profiles_files"] = [f"error: {e}"]
+    return jsonify(info)
 
 
 # Run the server
