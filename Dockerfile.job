@@ -10,7 +10,7 @@ RUN apt-get update && \
         curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Set working directory for code
 WORKDIR /app
 
 # Copy local code
@@ -24,5 +24,6 @@ ENV PATH="/app/venv/bin:$PATH"
 RUN pip install --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -r requirements.job.txt
 
-# Run job runner
-CMD ["python", "job_runner.py"]
+# Run from /
+WORKDIR /
+CMD ["python", "/app/job_runner.py"]
