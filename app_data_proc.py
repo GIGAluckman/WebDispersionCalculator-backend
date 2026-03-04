@@ -26,8 +26,6 @@ def process_mode_profile_waveguide(mode, component_index, db_data):
 
     xi = np.linspace(x_min, x_max, int(width/cell_size_width))
     yi = np.linspace(y_min, y_max, int(thickness/cell_size_thickness))
-    print(xi.tolist())
-    print(yi.tolist())
     Xi, Yi = np.meshgrid(xi, yi)
     Zi = griddata(xy, values, (Xi, Yi), method='cubic', fill_value=np.nan)
     Zi = np.where(np.isnan(Zi), 0, Zi)
