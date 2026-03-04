@@ -193,15 +193,34 @@ def result(simulation_id):
         return jsonify({"error": str(e), "errorId": 99}), 500
 
 
-# Route to retrieve mode profile (meshio preprocessing, first component only)
-@app.route('/get_mode_profile/<simulation_id>/<int:mode_num>/', methods=['GET'])
-def get_mode_profile(simulation_id, mode_num):
-    """Retrieve mode profile for k=0: preprocess VTK with meshio, return first magnetization component for 2D plot."""
+# Route to retrieve mode profile (meshio preprocessing, component selection)
+@app.route('/get_mode_profile', methods=['POST'])
+def get_mode_profile():
+    """Retrieve mode profile for k=0: preprocess VTK with meshio, return selected magnetization component for 2D plot."""
+    data = request.json
+    if not data:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    simulation_id = data.get('id')
+    if not simulation_id:
+        return jsonify({"error": "Missing 'id' in request"}), 400
+
+    try:
+        mode_num = int(data.get('modeNumber', 0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid modeNumber"}), 400
+
+    component = data.get('component', 'x')
+    component_map = {'x': 0, 'y': 1, 'z': 2}
+    if component not in component_map:
+        return jsonify({"error": "component must be x, y, or z"}), 400
+    component_index = component_map[component]
+
     try:
         db_path = os.path.join(volume_path, f'{simulation_id}_db.json')
         json_helper = JSONHelper(db_path)
-        data = json_helper.get_all_parameters()
-        number_of_modes = int(data.get('numberOfModes', 3))
+        db_data = json_helper.get_all_parameters()
+        number_of_modes = int(db_data.get('numberOfModes', 3))
     except Exception as e:
         print(f"Error reading db for {simulation_id}: {e}")
         return jsonify({"error": "Simulation not found"}), 404
@@ -240,7 +259,7 @@ def get_mode_profile(simulation_id, mode_num):
 
     points = mode.points
     re_m = mode.point_data['Re(m)']
-    values = np.asarray(re_m[:, 0], dtype=float) * 1e3
+    values = np.asarray(re_m[:, component_index], dtype=float) * 1e3
 
     xy = points[:, :2]
 
