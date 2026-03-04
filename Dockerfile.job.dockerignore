@@ -2,6 +2,7 @@
 
 # Exclude Flask-specific files
 app.py
+app_data_proc.py
 gunicorn.conf.py
 gunicorn.local.conf.py
 requirements.txt

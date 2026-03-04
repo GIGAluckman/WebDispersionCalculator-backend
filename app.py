@@ -5,13 +5,12 @@ import os
 import json
 import subprocess
 import sys
-import numpy as np
 import meshio
-from scipy.interpolate import griddata
 import pandas as pd
 from azure.servicebus import ServiceBusClient, ServiceBusMessage
 from helpers import JSONHelper
 from datetime import datetime
+from app_data_proc import *
 
 load_dotenv()
 _env_local = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env.local')
@@ -198,36 +197,28 @@ def result(simulation_id):
 def get_mode_profile():
     """Retrieve mode profile for k=0: preprocess VTK with meshio, return selected magnetization component for 2D plot."""
     data = request.json
-    if not data:
-        return jsonify({"error": "Request body must be JSON"}), 400
 
     simulation_id = data.get('id')
-    if not simulation_id:
-        return jsonify({"error": "Missing 'id' in request"}), 400
-
-    try:
-        mode_num = int(data.get('modeNumber', 0))
-    except (TypeError, ValueError):
-        return jsonify({"error": "Invalid modeNumber"}), 400
+    mode_num = int(data.get('modeNumber', 0))
 
     component = data.get('component', 'x')
     component_map = {'x': 0, 'y': 1, 'z': 2}
-    if component not in component_map:
-        return jsonify({"error": "component must be x, y, or z"}), 400
     component_index = component_map[component]
 
     try:
         db_path = os.path.join(volume_path, f'{simulation_id}_db.json')
         json_helper = JSONHelper(db_path)
         db_data = json_helper.get_all_parameters()
-        number_of_modes = int(db_data.get('numberOfModes', 3))
+        geometry_type = db_data.get('chosenGeometry')
     except Exception as e:
         print(f"Error reading db for {simulation_id}: {e}")
         return jsonify({"error": "Simulation not found"}), 404
 
-    if mode_num < 0 or mode_num >= number_of_modes:
-        return jsonify({"error": f"mode must be between 0 and {number_of_modes - 1}"}), 400
-
+    print("Processing mode profile for simulation:", simulation_id)
+    print("Geometry type:", geometry_type)
+    print("Component:", component)
+    print("Mode number:", mode_num)
+    
     mode_profiles_dir = os.path.join(simulation_data_path, simulation_id, 'eigen', 'mode_profiles')
     vtk_filename = f'mode_k0.0radperm_m0.0_{mode_num:03d}.vtk'
     vtk_path = os.path.join(mode_profiles_dir, vtk_filename)
@@ -241,41 +232,15 @@ def get_mode_profile():
         print(f"Error reading VTK for {simulation_id} mode {mode_num}: {e}")
         return jsonify({"error": str(e)}), 500
 
-    if 'Re(m)' not in mode.point_data:
-        return jsonify({"error": "VTK file missing point_data 'Re(m)'"}), 500
-
-    triangles = None
-    for cell_block in mode.cells:
-        if cell_block.type == 'triangle':
-            triangles = cell_block.data
-            break
-    if triangles is None:
-        try:
-            triangles = mode.get_cells_type('triangle')
-        except Exception:
-            pass
-    if triangles is None:
-        return jsonify({"error": "VTK file has no triangle cells"}), 500
-
-    points = mode.points
-    re_m = mode.point_data['Re(m)']
-    values = np.asarray(re_m[:, component_index], dtype=float) * 1e3
-
-    xy = points[:, :2]
-
-    x_min, x_max = xy[:, 0].min(), xy[:, 0].max()
-    y_min, y_max = xy[:, 1].min(), xy[:, 1].max()
-    n_grid = 80
-    xi = np.linspace(x_min, x_max, n_grid)
-    yi = np.linspace(y_min, y_max, n_grid)
-    Xi, Yi = np.meshgrid(xi, yi)
-    Zi = griddata(xy, values, (Xi, Yi), method='cubic', fill_value=np.nan)
-    Zi = np.where(np.isnan(Zi), 0, Zi)
-    response_data = {
-        'x': xi.tolist(),
-        'y': yi.tolist(),
-        'z': Zi.tolist(),
-    }
+    if geometry_type == 'Waveguide':
+        response_data = process_mode_profile_waveguide(mode, component_index, db_data)
+    elif geometry_type == 'Plane Film':
+        response_data = process_mode_profile_plane_film(mode, component_index)
+    elif geometry_type == 'Wire':
+        response_data = process_mode_profile_wire(mode, component_index, db_data)
+    if 'error' in response_data:
+        return jsonify(response_data), 500
+    
     response = jsonify(response_data)
     response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))
     return response
