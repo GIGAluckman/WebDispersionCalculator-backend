@@ -3,3 +3,4 @@
 
 python-dotenv==1.0.1
 azure-servicebus==7.14.3
+psutil>=5.9.0
