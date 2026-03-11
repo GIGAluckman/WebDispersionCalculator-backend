@@ -21,6 +21,7 @@ BASE_DELAY = 0.1
 class JSONHelper:
     def __init__(self, db_path):
         self.db_path = db_path
+        self._param_defaults = {"progress": 0, "error": 0, "status": "", "time": 0}
 
     @contextmanager
     def _locked_file(self, mode, lock_type):
@@ -90,10 +91,11 @@ class JSONHelper:
         lock = fcntl.LOCK_SH if (USE_FILE_LOCKING and fcntl is not None) else None
         with self._locked_file("r+", lock) as fh:
             data = self._safe_load(fh)
-        return data["data"][name]
+        data.setdefault("data", {})
+        return data["data"].get(name, self._param_defaults.get(name, 0))
 
     def get_all_parameters(self):
         lock = fcntl.LOCK_SH if (USE_FILE_LOCKING and fcntl is not None) else None
         with self._locked_file("r+", lock) as fh:
             data = self._safe_load(fh)
-        return data["data"]
+        return data.get("data", {})
