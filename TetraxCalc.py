@@ -28,18 +28,32 @@ class TetraxCalc:
                 cell_size_thickness=int(self.data.get('dThick', 5)),
             )
             
+            print("Mesh created for waveguide geometry")
+            print("Mesh width:", self.data['width'])
+            print("Mesh thickness:", self.data['thickness'])
+            print("Mesh cell size width:", self.data.get('dWidth', 5))
+            print("Mesh cell size thickness:", self.data.get('dThick', 5))
+            
         elif self.geometry == 'Plane Film':
             mesh = tx.geometries.layer.monolayer(
                 thickness=self.data['thickness'],
                 cell_size=int(self.data.get('dThick', 5)),
             )
+            
+            print("Mesh created for plane film geometry")
+            print("Mesh thickness:", self.data['thickness'])
+            print("Mesh cell size:", self.data.get('dThick', 5))
              
         elif self.geometry == 'Wire':
             mesh = tx.geometries.waveguide.round_wire(
                 radius=self.data['radius'],
                 cell_size=int(self.data.get('dRadius', 5)),
             )
-        
+            
+            print("Mesh created for wire geometry")
+            print("Mesh radius:", self.data['radius'])
+            print("Mesh cell size:", self.data.get('dRadius', 5))
+            
         self.sample = tx.Sample(mesh, name=os.path.join(SIMULATION_DATA_PATH, str(self.task_id)))
         
     def set_material(self):
