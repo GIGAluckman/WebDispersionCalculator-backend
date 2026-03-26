@@ -18,6 +18,7 @@ class TetraxCalc:
         self.num_cpus = num_cpus
         self.data_parser()
         self.json_helper = json_helper
+        self._field_names = ["dipole", "exchange", "zeeman", "uniaxial_anisotropy"]
         
     def set_geometry(self):
         if self.geometry == 'Waveguide':
@@ -134,8 +135,15 @@ class TetraxCalc:
         end_dispersion_time = time.time()
         calc_time = round(end_dispersion_time - start_dispersion_time, 3)
         self.json_helper.set_parameter('time', calc_time)
+        
+        self.save_field_data()
         return dispersion, 0
     
+    def save_field_data(self):
+        for field_name in self._field_names:
+            field_data = self.sample.get_field(field_name)
+            self.sample.field_to_file(field_data, os.path.join(self.simulation_path, f'{field_name}.vtk'))
+            
     def data_parser(self):
         for key in self.data.keys():
             if 'Axis' in key:
