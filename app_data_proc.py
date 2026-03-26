@@ -21,6 +21,11 @@ def process_mode_profile_mesh(mode, component_index):
     # 1D-like mesh (Plane Film): synthesize a strip with triangles
     return _synthesize_strip(mode.points, values)
 
+def find_closest_mode(all_modes, k_value):
+    k_all = [float(mode.split('k')[1].split('radperm')[0]) for mode in all_modes]
+    k_all = np.sort(np.unique(np.array(k_all)))
+    closest_k = k_all[np.argmin(np.abs(k_all - k_value))]
+    return closest_k
 
 def _synthesize_strip(points_3d, values):
     """Create a synthetic 2D triangle strip from a 1D chain of points."""

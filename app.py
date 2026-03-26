@@ -7,6 +7,7 @@ import subprocess
 import sys
 import meshio
 import pandas as pd
+import glob
 from azure.servicebus import ServiceBusClient, ServiceBusMessage
 from helpers import JSONHelper
 from datetime import datetime
@@ -203,6 +204,7 @@ def get_mode_profile():
 
     simulation_id = data.get('id')
     mode_num = int(data.get('modeNumber', 0))
+    k_value = float(data.get('wavevector', 0.0)) * 1e6 # in rad/µm
 
     component = data.get('component', 'x')
     component_map = {'x': 0, 'y': 1, 'z': 2}
@@ -223,7 +225,10 @@ def get_mode_profile():
     print("Mode number:", mode_num)
     
     mode_profiles_dir = os.path.join(simulation_data_path, simulation_id, 'eigen', 'mode_profiles')
-    vtk_filename = f'mode_k0.0radperm_m0.0_{mode_num:03d}.vtk'
+    all_modes = glob.glob(os.path.join(mode_profiles_dir, 'mode_*.vtk'))
+    closest_k = find_closest_mode(all_modes, k_value)
+    print("Closest k:", closest_k)
+    vtk_filename = f'mode_k{closest_k}radperm_m0.0_{mode_num:03d}.vtk'
     vtk_path = os.path.join(mode_profiles_dir, vtk_filename)
 
     if not os.path.exists(vtk_path):
@@ -243,6 +248,7 @@ def get_mode_profile():
         return jsonify(response_data), 500
 
     response_data['geometry_type'] = geometry_type
+    response_data['closest_k'] = closest_k / 1e6 # in rad/µm
     response = jsonify(response_data)
     response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))
     print("--------------------------------")
