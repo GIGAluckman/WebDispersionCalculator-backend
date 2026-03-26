@@ -8,9 +8,9 @@ SIMULATION_DATA_PATH = os.getenv('SIMULATION_DATA_PATH', 'simulation_data')
 class TetraxCalc:
     def __init__(self, data, id, json_helper, num_cpus=-1):
         
-        simulation_path = os.path.join(SIMULATION_DATA_PATH, str(id))
-        if not os.path.exists(simulation_path):
-            os.makedirs(simulation_path)
+        self.simulation_path = os.path.join(SIMULATION_DATA_PATH, str(id))
+        if not os.path.exists(self.simulation_path):
+            os.makedirs(self.simulation_path)
         
         self.task_id = id
         self.data = data
@@ -54,7 +54,7 @@ class TetraxCalc:
             print("Mesh radius:", self.data['radius'])
             print("Mesh cell size:", self.data.get('dRadius', 5))
             
-        self.sample = tx.Sample(mesh, name=os.path.join(SIMULATION_DATA_PATH, str(self.task_id)))
+        self.sample = tx.Sample(mesh, name=self.simulation_path)
         
     def set_material(self):
         self.sample.material['Msat'] = float(self.data['saturationMagnetization'])
