@@ -6,4 +6,4 @@ azure-servicebus==7.14.3
 pandas>=2.2.3
 meshio>=5.0
 numpy>=1.20
-scipy>=1.9
+
