@@ -6,6 +6,7 @@ Processes available messages and exits.
 import os
 import json
 import sys
+import time
 import traceback
 from dotenv import load_dotenv
 from azure.servicebus import ServiceBusClient, ServiceBusReceiveMode, AutoLockRenewer
@@ -43,7 +44,10 @@ def process_simulation(simulation_id, num_cpus=-1):
         txCalc = TetraxCalc(data, simulation_id, json_helper, num_cpus=num_cpus)
         
         if txCalc.data['chosenExperiment'] == 'Dispersion':
+            perf_start = time.perf_counter()
             dispersion, error = txCalc.calculate_dispersion()
+            perf_elapsed = time.perf_counter() - perf_start
+            print(f"Dispersion calculation: {perf_elapsed:.3f} s")
             
             if error == 0:
                 json_helper.set_parameter('status', 'Completed')
