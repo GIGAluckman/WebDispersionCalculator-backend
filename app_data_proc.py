@@ -1,98 +1,57 @@
 import numpy as np
-from scipy.interpolate import griddata
 
-def process_mode_profile_waveguide(mode, component_index, db_data):
-    """Process mode profile for waveguide geometry."""
-    width = float(db_data.get('width'))
-    thickness = float(db_data.get('thickness'))
-    cell_size_width = int(db_data.get('dWidth', 5))
-    cell_size_thickness = int(db_data.get('dThick', 5))
-
+def process_mode_profile_mesh(mode, component_index):
+    """Return raw triangular mesh data for frontend rendering."""
     if 'Re(m)' not in mode.point_data:
         return {"error": "VTK file missing point_data 'Re(m)'"}
 
-    triangles = _find_triangles(mode)
-    if triangles is None:
-        return {"error": "VTK file has no triangle cells"}
+    values = np.asarray(mode.point_data['Re(m)'][:, component_index], dtype=float) * 1e3
 
-    points = mode.points
-    re_m = mode.point_data['Re(m)']
-    values = np.asarray(re_m[:, component_index], dtype=float) * 1e3
-
-    xy = points[:, :2]
-
-    x_min, x_max = xy[:, 0].min(), xy[:, 0].max()
-    y_min, y_max = xy[:, 1].min(), xy[:, 1].max()
-
-    xi = np.linspace(x_min, x_max, int(width/cell_size_width))
-    yi = np.linspace(y_min, y_max, int(thickness/cell_size_thickness))
-    Xi, Yi = np.meshgrid(xi, yi)
-    Zi = griddata(xy, values, (Xi, Yi), method='cubic', fill_value=np.nan)
-    Zi = np.where(np.isnan(Zi), 0, Zi)
-    
-    response_data = {
-        'x': xi.tolist(),
-        'y': yi.tolist(),
-        'z': Zi.tolist(),
-    }
-    print("Mode profile processed successfully with grid size:", len(xi), "x", len(yi))
-    return response_data
-
-def process_mode_profile_plane_film(mode, component_index):
-    """Process mode profile for plane film geometry."""
-    if 'Re(m)' not in mode.point_data:
-        return {"error": "VTK file missing point_data 'Re(m)'"}
+    points = mode.points[:, :2]  # Nx2, drop z
+    x_range = points[:, 0].max() - points[:, 0].min()
 
     triangles = _find_triangles(mode)
-    if triangles is None:
-        return {"error": "VTK file has no triangle cells"}
+    if triangles is not None and x_range > 1e-6:
+        return {
+            'points': points.tolist(),
+            'triangles': triangles.tolist(),
+            'values': values.tolist(),
+        }
 
-    points = mode.points
-    re_m = mode.point_data['Re(m)']
-    values = np.asarray(re_m[:, component_index], dtype=float) * 1e3
+    # 1D-like mesh (Plane Film): synthesize a strip with triangles
+    return _synthesize_strip(mode.points, values)
 
-    y = points[:, 1]
+
+def _synthesize_strip(points_3d, values):
+    """Create a synthetic 2D triangle strip from a 1D chain of points."""
+    y = points_3d[:, 1]
     sorted_idx = np.argsort(y)
-    y_sorted = y[sorted_idx].tolist()
+    y_sorted = y[sorted_idx]
     values_sorted = values[sorted_idx]
 
-    response_data = {
-        'x': [0.0],
-        'y': y_sorted,
-        'z': [[v] for v in values_sorted],
+    n = len(y_sorted)
+    strip_points = []
+    strip_values = []
+    for i in range(n):
+        strip_points.append([0.0, float(y_sorted[i])])
+        strip_points.append([1.0, float(y_sorted[i])])
+        strip_values.append(float(values_sorted[i]))
+        strip_values.append(float(values_sorted[i]))
+
+    strip_triangles = []
+    for i in range(n - 1):
+        bl = i * 2
+        br = i * 2 + 1
+        tl = (i + 1) * 2
+        tr = (i + 1) * 2 + 1
+        strip_triangles.append([bl, br, tl])
+        strip_triangles.append([br, tr, tl])
+
+    return {
+        'points': strip_points,
+        'triangles': strip_triangles,
+        'values': strip_values,
     }
-    print("Mode profile processed successfully with grid size: 1 x", len(y_sorted))
-    return response_data
-
-def process_mode_profile_wire(mode, component_index, db_data):
-    radius = float(db_data.get('radius'))
-    cell_size = int(db_data.get('dRadius', 5))
-    """Process mode profile for wire geometry."""
-    if 'Re(m)' not in mode.point_data:
-        return {"error": "VTK file missing point_data 'Re(m)'"}
-
-    triangles = _find_triangles(mode)
-    if triangles is None:
-        return {"error": "VTK file has no triangle cells"}
-
-    points = mode.points
-    re_m = mode.point_data['Re(m)']
-    values = np.asarray(re_m[:, component_index], dtype=float) * 1e3
-
-    xy = points[:, :2]
-    r_min, r_max = xy[:, 0].min(), xy[:, 0].max()
-    ri = np.linspace(r_min, r_max, int(radius/cell_size))
-    Xi, Yi = np.meshgrid(ri, ri)
-    Zi = griddata(xy, values, (Xi, Yi), method='cubic', fill_value=np.nan)
-    Zi = np.where(np.isnan(Zi), 0, Zi)
-
-    response_data = {
-        'x': ri.tolist(),
-        'y': ri.tolist(),
-        'z': Zi.tolist(),
-    }
-    print("Mode profile processed successfully with grid size:", len(ri), "x", len(ri))
-    return response_data
 
 def _find_triangles(mode):
     triangles = None
