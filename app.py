@@ -102,6 +102,7 @@ def run_job_locally(simulation_id):
 @app.route('/start', methods=['POST'])
 def start():
     """Receive form data, save to Azure Files, send to Service Bus, return immediately."""
+    print("--------------------------------")
     data = request.json
     
     simulation_id = data['id']
@@ -122,6 +123,7 @@ def start():
     response = jsonify({"status": "accepted", "simulation_id": simulation_id})
     response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))
     
+    print("--------------------------------")
     return response
 
 # Route to check simulation status
@@ -196,6 +198,7 @@ def result(simulation_id):
 @app.route('/get_mode_profile', methods=['POST'])
 def get_mode_profile():
     """Retrieve mode profile for k=0: preprocess VTK with meshio, return selected magnetization component for 2D plot."""
+    print("--------------------------------")
     data = request.json
 
     simulation_id = data.get('id')
@@ -242,6 +245,7 @@ def get_mode_profile():
     response_data['geometry_type'] = geometry_type
     response = jsonify(response_data)
     response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))
+    print("--------------------------------")
     return response
 
 
