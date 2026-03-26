@@ -235,12 +235,7 @@ def get_mode_profile():
         print(f"Error reading VTK for {simulation_id} mode {mode_num}: {e}")
         return jsonify({"error": str(e)}), 500
 
-    if geometry_type == 'Waveguide':
-        response_data = process_mode_profile_waveguide(mode, component_index, db_data)
-    elif geometry_type == 'Plane Film':
-        response_data = process_mode_profile_plane_film(mode, component_index)
-    elif geometry_type == 'Wire':
-        response_data = process_mode_profile_wire(mode, component_index, db_data)
+    response_data = process_mode_profile_mesh(mode, component_index)
     if 'error' in response_data:
         return jsonify(response_data), 500
 
