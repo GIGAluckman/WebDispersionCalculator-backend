@@ -254,6 +254,53 @@ def get_mode_profile():
     print("--------------------------------")
     return response
 
+# Route to retrieve field profile (field and component selection)
+@app.route('/get_field_profile', methods=['POST'])
+def get_field_profile():
+    """Retrieve field profile for k=0: preprocess VTK with meshio, return selected magnetization component for 2D plot."""
+    print("--------------------------------")
+    data = request.json
+
+    simulation_id = data.get('id')
+    simulation_folder = os.path.join(simulation_data_path, simulation_id)
+    field_name = data.get('fieldName', 'Demagnetization field')
+    component = data.get('component', 'x')
+    component_map = {'x': 0, 'y': 1, 'z': 2}
+    component_index = component_map[component]
+
+    try:
+        db_path = os.path.join(volume_path, f'{simulation_id}_db.json')
+        json_helper = JSONHelper(db_path)
+        db_data = json_helper.get_all_parameters()
+        geometry_type = db_data.get('chosenGeometry')
+    except Exception as e:
+        print(f"Error reading db for {simulation_id}: {e}")
+        return jsonify({"error": "Simulation not found"}), 404
+    
+    print("Processing field profile for simulation:", simulation_id)
+    print("Geometry type:", geometry_type)
+    print("Field name:", field_name)
+    print("Component:", component)
+    
+    try:
+        field_path = os.path.join(simulation_folder, f'{fields_names_dict[field_name]}.vtk')
+        if not os.path.exists(field_path):
+            return jsonify({"error": f"Field not found: {field_name}"}), 404
+        field = meshio.read(field_path)
+    except Exception as e:
+        print(f"Error reading VTK for {simulation_id} field {field_name}: {e}")
+        return jsonify({"error": str(e)}), 500
+    
+    response_data = process_field_profile_mesh(field, component_index)
+    if 'error' in response_data:
+        return jsonify(response_data), 500
+
+    response_data['geometry_type'] = geometry_type
+    response_data['field_name'] = field_name
+    response = jsonify(response_data)
+    response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))
+    print("--------------------------------")
+    return response
 
 # Diagnostic endpoint for volume/storage debugging
 @app.route('/debug/volumes', methods=['GET'])

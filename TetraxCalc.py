@@ -140,9 +140,14 @@ class TetraxCalc:
         return dispersion, 0
     
     def save_field_data(self):
+        field_terms = []
         for field_name in self._field_names:
             field_data = self.sample.get_field(field_name)
+            field_terms.append(field_data)
             self.sample.field_to_file(field_data, os.path.join(self.simulation_path, f'{field_name}.vtk'))
+        
+        total_field = sum(field_terms)
+        self.sample.field_to_file(total_field, os.path.join(self.simulation_path, f'total.vtk'))
             
     def data_parser(self):
         for key in self.data.keys():

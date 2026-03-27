@@ -1,5 +1,13 @@
 import numpy as np
 
+fields_names_dict = {
+    'Demagnetization field': 'dipole',
+    'Exchange field': 'exchange',
+    'External field': 'zeeman',
+    'Anisotropy field': 'uniaxial_anisotropy',
+    'Total field': 'total',
+}
+
 def process_mode_profile_mesh(mode, component_index):
     """Return raw triangular mesh data for frontend rendering."""
     if 'Re(m)' not in mode.point_data:
@@ -20,6 +28,21 @@ def process_mode_profile_mesh(mode, component_index):
 
     # 1D-like mesh (Plane Film): synthesize a strip with triangles
     return _synthesize_strip(mode.points, values)
+
+def process_field_profile_mesh(field, component_index):
+    values = np.asarray(field.point_data['vector'][:, component_index], dtype=float)
+    
+    points = field.points[:, :2]  # Nx2, drop z
+    x_range = points[:, 0].max() - points[:, 0].min()
+    
+    triangles = _find_triangles(field)
+    if triangles is not None and x_range > 1e-6:
+        return {
+            'points': points.tolist(),
+            'triangles': triangles.tolist(),
+            'values': values.tolist(),
+        }
+    return _synthesize_strip(field.points, values)
 
 def find_closest_mode(all_modes, k_value):
     k_all = [float(mode.split('k')[1].split('radperm')[0]) for mode in all_modes]
