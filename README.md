@@ -46,6 +46,8 @@ Simulation Job (Container App Job)
 - Group velocity computation
 - Propagation length analysis
 - Lifetime calculations
+- Magnetization distribution visualization for different modes
+- Magnetic field distribution for different contributions (exchange, demag, etc.)
 - Asynchronous job processing
 - RESTful API interface
 - Scalable simulation execution
@@ -58,7 +60,7 @@ Simulation Job (Container App Job)
 - **Environment Management**: python-dotenv 1.0.1
 - **WSGI Server**: Gunicorn 23.0.0
 - **Message Queue**: Azure Service Bus 7.14.3
-- **Data Processing**: Pandas
+- **Data Processing**: Pandas, meshio
 
 ### Simulation Job
 - **Simulation Engine**: TetraX 2.0.0
