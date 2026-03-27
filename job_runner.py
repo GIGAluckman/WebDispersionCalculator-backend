@@ -28,7 +28,7 @@ RECEIVE_TIMEOUT_SECONDS = 10
 MESSAGE_LOCK_RENEWAL_DURATION = 600 # replica timeout is 600s
 
 
-def process_simulation(simulation_id, num_cpus=-1):
+def process_simulation(simulation_id, num_cpus=-1, local_mode=False):
     """Process a simulation job."""
     print(f"Starting simulation for {simulation_id}")
     
@@ -41,7 +41,7 @@ def process_simulation(simulation_id, num_cpus=-1):
         json_helper.set_parameter('status', 'Job started')
         json_helper.set_parameter('progress', 0)
         
-        txCalc = TetraxCalc(data, simulation_id, json_helper, num_cpus=num_cpus)
+        txCalc = TetraxCalc(data, simulation_id, json_helper, num_cpus=num_cpus, local_mode=local_mode)
         
         if txCalc.data['chosenExperiment'] == 'Dispersion':
             perf_start = time.perf_counter()
@@ -89,7 +89,7 @@ def main():
         print(f"Running in one-shot mode for simulation: {simulation_id}")
         print(f"Volume path: {volume_path}")
         print(f"Simulation data path: {simulation_data_path}")
-        process_simulation(simulation_id, num_cpus=1)
+        process_simulation(simulation_id, num_cpus=1, local_mode=True)
         print("One-shot job completed, exiting.")
         return
 

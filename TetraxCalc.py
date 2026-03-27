@@ -6,7 +6,7 @@ from df_manipulation import *
 SIMULATION_DATA_PATH = os.getenv('SIMULATION_DATA_PATH', 'simulation_data')
 
 class TetraxCalc:
-    def __init__(self, data, id, json_helper, num_cpus=-1):
+    def __init__(self, data, id, json_helper, num_cpus=-1, local_mode=False):
         
         self.simulation_path = os.path.join(SIMULATION_DATA_PATH, str(id))
         if not os.path.exists(self.simulation_path):
@@ -16,6 +16,8 @@ class TetraxCalc:
         self.data = data
         self.geometry = data['chosenGeometry']
         self.num_cpus = num_cpus
+        self.local_mode = local_mode
+        self.local_mode_sleep_time = 3
         self.data_parser()
         self.json_helper = json_helper
         self._field_names = ["dipole", "exchange", "zeeman", "uniaxial_anisotropy"]
@@ -72,6 +74,10 @@ class TetraxCalc:
         print(f"e_u: {self.sample.material['e_u'].average}")
         
     def calculate_dispersion(self):
+        if self.local_mode:
+            print(f'Local mode, sleeping for {self.local_mode_sleep_time} seconds at the start')
+            time.sleep(self.local_mode_sleep_time)
+            
         start_dispersion_time = time.time()
         self.set_geometry()
         self.set_material()
@@ -137,6 +143,10 @@ class TetraxCalc:
         self.json_helper.set_parameter('time', calc_time)
         
         self.save_field_data()
+        if self.local_mode:
+            print(f'Local mode, sleeping for {self.local_mode_sleep_time} seconds at the end')
+            time.sleep(self.local_mode_sleep_time)
+            
         return dispersion, 0
     
     def save_field_data(self):
