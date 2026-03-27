@@ -30,7 +30,7 @@ def process_mode_profile_mesh(mode, component_index):
     return _synthesize_strip(mode.points, values)
 
 def process_field_profile_mesh(field, component_index):
-    values = np.asarray(field.point_data['vector'][:, component_index], dtype=float)
+    values = np.asarray(field.point_data['vector'][:, component_index], dtype=float) * 1e3
     
     points = field.points[:, :2]  # Nx2, drop z
     x_range = points[:, 0].max() - points[:, 0].min()
