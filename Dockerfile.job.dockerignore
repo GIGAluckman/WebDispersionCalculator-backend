@@ -6,7 +6,23 @@ app_data_proc.py
 gunicorn.conf.py
 gunicorn.local.conf.py
 requirements.txt
+requirements.dev.txt
 Dockerfile
+tests/
+
+# Vendored library dead weight (tetrax/doc alone is ~200 MB)
+tetrax/.git/
+tetrax/build/
+tetrax/doc/
+tetrax/documentation/
+tetrax/tests/
+tetrax/logo_large.png
+tetrax/**/__pycache__/
+pygmsh/.git/
+pygmsh/doc/
+pygmsh/test/
+pygmsh/tests/
+pygmsh/**/__pycache__/
 
 # Exclude local/dev configs
 venv*/

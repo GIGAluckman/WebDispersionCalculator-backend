@@ -1,7 +1,8 @@
 import tetrax as tx
 import os
 import time
-from df_manipulation import *
+from df_manipulation import if_nan, dataframe_polish, lifetime, group_velocity, propagation_length
+from helpers import ErrorCode
 
 SIMULATION_DATA_PATH = os.getenv('SIMULATION_DATA_PATH', 'simulation_data')
 
@@ -107,10 +108,14 @@ class TetraxCalc:
                 print('LLG relaxation successful')
                 self.json_helper.set_parameter('status', 'Relaxation successful')
             else:
+                # An unrelaxed state would produce physically meaningless
+                # dispersion data, so fail here instead of continuing.
                 print('Relaxation failed')
                 self.json_helper.set_parameter('status', 'Relaxation unsuccessful!')
-                
-        self.json_helper.set_parameter('status', 'Dispersion calculation in progress')    
+                self.json_helper.set_parameter('error', int(ErrorCode.RELAXATION_FAILED))
+                return None, ErrorCode.RELAXATION_FAILED
+
+        self.json_helper.set_parameter('status', 'Dispersion calculation in progress')
         
         dispersion = tx.experiments.eigenmodes(
             sample=self.sample,
@@ -124,8 +129,8 @@ class TetraxCalc:
         if if_nan(dispersion.spectrum_dataframe):
             dispersion = dataframe_polish(dispersion.spectrum_dataframe, self.data['kMin'], self.data['kMax'], self.task_id)
             self.json_helper.set_parameter('status', 'NaN found in dispersion calculation!')
-            self.json_helper.set_parameter('error', 2)
-            return dispersion, 1
+            self.json_helper.set_parameter('error', int(ErrorCode.NAN_IN_DISPERSION))
+            return dispersion, ErrorCode.NAN_IN_DISPERSION
         
         dispersion.linewidths()
         

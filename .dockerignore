@@ -6,9 +6,12 @@ tetrax/
 
 # Exclude job-specific files
 job_runner.py
+TetraxCalc.py
 requirements.job.txt
+requirements.dev.txt
 Dockerfile.job
 Dockerfile.job.dockerignore
+tests/
 
 # Exclude local/dev configs
 gunicorn.local.conf.py

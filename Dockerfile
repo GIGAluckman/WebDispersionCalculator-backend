@@ -4,6 +4,9 @@ FROM --platform=linux/amd64 python:3.11-slim
 # Label the image
 LABEL version="1.0.0"
 
+# Logs flush immediately so Container Apps captures them in order
+ENV PYTHONUNBUFFERED=1
+
 # Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -13,18 +16,13 @@ RUN apt-get update && \
 # Set working directory
 WORKDIR /app
 
+# Install dependencies first: this layer only rebuilds when requirements change
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
+
 # Copy local code
 COPY . .
-
-# Create virtual environment
-RUN python -m venv venv
-
-# Activate virtual environment
-ENV PATH="/app/venv/bin:$PATH"
-
-# Upgrade pip and install dependencies
-RUN pip install --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose port for Azure Container App
 EXPOSE 80

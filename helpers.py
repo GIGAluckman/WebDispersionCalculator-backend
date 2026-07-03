@@ -1,8 +1,10 @@
 import json
 import os
+import re
 import time
 import random
 from contextlib import contextmanager
+from enum import IntEnum
 
 # fcntl is not available on Windows
 try:
@@ -16,6 +18,35 @@ USE_FILE_LOCKING = os.getenv('USE_FILE_LOCKING', 'false').lower() == 'true'
 
 MAX_RETRIES = 5
 BASE_DELAY = 0.1
+
+SIMULATION_ID_PATTERN = re.compile(r'[A-Za-z0-9_-]{1,64}')
+
+
+class ErrorCode(IntEnum):
+    OK = 0
+    NAN_IN_DISPERSION = 1  # frontend shows a warning and plots dispersion only
+    RELAXATION_FAILED = 2
+    UNSUPPORTED_EXPERIMENT = 3
+    UNEXPECTED = 99
+
+
+def validate_simulation_id(simulation_id, base_dir):
+    """Accept only IDs that are safe to join into paths under base_dir."""
+    if not isinstance(simulation_id, str):
+        return False
+    if not SIMULATION_ID_PATTERN.fullmatch(simulation_id):
+        return False
+    base = os.path.realpath(base_dir)
+    target = os.path.realpath(os.path.join(base_dir, simulation_id))
+    return target.startswith(base + os.sep)
+
+
+def atomic_write_json(path, obj):
+    """Write JSON to a temp file and os.replace it so readers never see a partial file."""
+    tmp_path = f'{path}.tmp'
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=4)
+    os.replace(tmp_path, path)
 
 
 class JSONHelper:
@@ -56,8 +87,7 @@ class JSONHelper:
         data.setdefault("progress", 0)
         data_to_json = {"data": data}
 
-        with open(self.db_path, "w", encoding="utf-8") as f:
-            json.dump(data_to_json, f, ensure_ascii=False, indent=4)
+        atomic_write_json(self.db_path, data_to_json)
         print(f"Database created at: {self.db_path}")
 
     def set_parameter(self, name, value):
