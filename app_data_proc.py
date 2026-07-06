@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 
 fields_names_dict = {
@@ -45,7 +47,9 @@ def process_field_profile_mesh(field, component_index):
     return _synthesize_strip(field.points, values)
 
 def find_closest_mode(all_modes, k_value):
-    k_all = [float(mode.split('k')[1].split('radperm')[0]) for mode in all_modes]
+    # Parse the basename only: the directory part may contain 'k' (e.g. in the
+    # simulation id), which would corrupt a split on the full path.
+    k_all = [float(os.path.basename(mode).split('k')[1].split('radperm')[0]) for mode in all_modes]
     k_all = np.sort(np.unique(np.array(k_all)))
     closest_k = k_all[np.argmin(np.abs(k_all - k_value))]
     return closest_k
