@@ -7,6 +7,7 @@ import os
 import json
 import sys
 import time
+import threading
 import logging
 import traceback
 from dotenv import load_dotenv
@@ -31,9 +32,182 @@ service_bus_queue_name = os.getenv('AZURE_SERVICE_BUS_QUEUE_NAME', 'simulation-j
 volume_path = os.getenv('VOLUME_PATH', 'datastorage')
 simulation_data_path = os.getenv('SIMULATION_DATA_PATH', 'simulation_data')
 
-MAX_MESSAGES_PER_RUN = 5
+# replicaTimeout applies per execution, so one execution handles one
+# simulation; KEDA spawns an execution per queued message anyway
+MAX_MESSAGES_PER_RUN = 1
 RECEIVE_TIMEOUT_SECONDS = 10
-MESSAGE_LOCK_RENEWAL_DURATION = 600 # replica timeout is 600s
+# Must outlive the replica (replicaTimeout=1320) so the message lock never
+# lapses while a simulation is still computing
+MESSAGE_LOCK_RENEWAL_DURATION = int(os.getenv('MESSAGE_LOCK_RENEWAL_DURATION', '1500'))
+
+# Watchdog: hard ceiling per simulation, enforced from inside the process so a
+# terminal error reaches the db before Azure kills the replica (replicaTimeout
+# is the backstop, 2 minutes above this)
+SIM_TIME_LIMIT_SECONDS = int(os.getenv('SIM_TIME_LIMIT_SECONDS', '1200'))
+MEMORY_LIMIT_FRACTION = 0.92
+WATCHDOG_INTERVAL_SECONDS = 2.0
+
+# Service Bus counts deliveries starting at 1; allow one retry after a hard
+# death (OOM / infra), then give up with a terminal error
+MAX_DELIVERY_ATTEMPTS = 2
+
+# Statuses after which a redelivered message must not recompute (all failure
+# paths also set error != 0, which classify_delivery checks first)
+TERMINAL_STATUSES = {'Completed', 'Completed with errors'}
+
+# TetraxCalc writes this from inside calculate_dispersion once results exist;
+# the watchdog must not abort past this point (the sim effectively finished)
+SUCCESS_STATUSES = {'Dispersion calculation successful!'} | TERMINAL_STATUSES
+
+# (usage, limit) file pairs: cgroup v2 first, v1 fallback
+CGROUP_MEMORY_PATHS = [
+    ('/sys/fs/cgroup/memory.current', '/sys/fs/cgroup/memory.max'),
+    ('/sys/fs/cgroup/memory/memory.usage_in_bytes', '/sys/fs/cgroup/memory/memory.limit_in_bytes'),
+]
+# Local testing hook: point the watchdog at fake usage/limit files
+# (macOS has no cgroups). Format: "<usage_file>,<limit_file>"
+_watchdog_files_override = os.getenv('WATCHDOG_MEMORY_FILES')
+if _watchdog_files_override and ',' in _watchdog_files_override:
+    usage_file, limit_file = _watchdog_files_override.split(',', 1)
+    CGROUP_MEMORY_PATHS = [(usage_file.strip(), limit_file.strip())]
+# cgroup v1 reports a huge number when no limit is set
+_UNLIMITED_BYTES = 1 << 60
+
+
+def read_container_memory(paths=None):
+    """Return (usage_bytes, limit_bytes) from cgroup files, or None when the
+    container has no enforced memory limit (local dev, macOS, 'max')."""
+    for usage_path, limit_path in (paths or CGROUP_MEMORY_PATHS):
+        try:
+            with open(limit_path) as f:
+                limit_raw = f.read().strip()
+            if limit_raw == 'max':
+                return None
+            limit = int(limit_raw)
+            if limit <= 0 or limit >= _UNLIMITED_BYTES:
+                return None
+            with open(usage_path) as f:
+                usage = int(f.read().strip())
+            return usage, limit
+        except (OSError, ValueError):
+            continue
+    return None
+
+
+def classify_delivery(db_data, delivery_count):
+    """Decide what to do with a (possibly redelivered) queue message.
+
+    Returns 'skip_terminal' when the simulation already reached a terminal
+    state (results or error already recorded - recomputing would waste work
+    and could race a still-running attempt), 'give_up' when previous attempts
+    died hard without reaching a terminal state, and 'process' otherwise.
+    """
+    try:
+        error = int(db_data.get('error', 0) or 0)
+    except (TypeError, ValueError):
+        error = 0
+    if error != 0 or db_data.get('status') in TERMINAL_STATUSES:
+        return 'skip_terminal'
+    if delivery_count > MAX_DELIVERY_ATTEMPTS:
+        return 'give_up'
+    return 'process'
+
+
+class SimulationWatchdog:
+    """Background thread that aborts a simulation which exceeds the time
+    ceiling or approaches the container memory limit.
+
+    TetraX's compute is a blocking native call, so cooperative cancellation is
+    impossible: the watchdog writes a terminal error to the db first, then
+    hard-exits the process. The Service Bus message lock later expires and the
+    redelivered message is completed without recomputing (classify_delivery
+    sees the terminal state).
+    """
+
+    def __init__(self, json_helper, simulation_id,
+                 time_limit_seconds=None,
+                 memory_limit_fraction=MEMORY_LIMIT_FRACTION,
+                 check_interval=WATCHDOG_INTERVAL_SECONDS,
+                 memory_paths=None,
+                 exit_fn=os._exit,
+                 clock=time.monotonic):
+        self.json_helper = json_helper
+        self.simulation_id = simulation_id
+        self.time_limit_seconds = (
+            SIM_TIME_LIMIT_SECONDS if time_limit_seconds is None else time_limit_seconds
+        )
+        self.memory_limit_fraction = memory_limit_fraction
+        self.check_interval = check_interval
+        self.memory_paths = memory_paths
+        self.exit_fn = exit_fn
+        self.clock = clock
+        self.started_at = None
+        self._stop_event = threading.Event()
+        self._thread = None
+
+    def start(self):
+        self.started_at = self.clock()
+        self._thread = threading.Thread(target=self._run, daemon=True,
+                                        name=f'watchdog-{self.simulation_id}')
+        self._thread.start()
+
+    def stop(self):
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join(timeout=self.check_interval + 1)
+
+    def _run(self):
+        while not self._stop_event.wait(self.check_interval):
+            self.check()
+
+    def check(self):
+        """Single evaluation; returns the trigger name (for tests) or None."""
+        trigger = None
+        elapsed = self.clock() - self.started_at
+        if elapsed > self.time_limit_seconds:
+            trigger = ('time_limit', 'Simulation time limit reached',
+                       ErrorCode.TIME_LIMIT_EXCEEDED,
+                       f'elapsed {elapsed:.0f}s > limit {self.time_limit_seconds}s')
+        else:
+            memory = read_container_memory(self.memory_paths)
+            if memory is not None:
+                usage, limit = memory
+                if usage > self.memory_limit_fraction * limit:
+                    trigger = ('memory', 'Simulation memory limit reached',
+                               ErrorCode.OUT_OF_MEMORY,
+                               f'memory {usage / 2**20:.0f} MiB of {limit / 2**20:.0f} MiB limit')
+
+        if trigger is None:
+            return None
+        # A limit fired in the window between the sim finishing and stop():
+        # never overwrite a result that already exists
+        if self._already_finished():
+            logger.info(f'Watchdog: {self.simulation_id} already finished, '
+                        f'ignoring {trigger[0]} trigger')
+            return None
+        self._abort(*trigger)
+        return trigger[0]
+
+    def _already_finished(self):
+        try:
+            data = self.json_helper.get_all_parameters()
+        except Exception:
+            return False
+        try:
+            error = int(data.get('error', 0) or 0)
+        except (TypeError, ValueError):
+            error = 0
+        return error != 0 or data.get('status') in SUCCESS_STATUSES
+
+    def _abort(self, trigger, status, error_code, detail):
+        logger.error(f'Watchdog aborting {self.simulation_id} ({trigger}): {detail}')
+        try:
+            self.json_helper.set_parameter('status', status)
+            self.json_helper.set_parameter('error', int(error_code))
+        except Exception as e:
+            logger.error(f'Watchdog could not record {trigger} state for '
+                         f'{self.simulation_id}: {e}')
+        self.exit_fn(1)
 
 
 def process_simulation(simulation_id, num_cpus=-1, local_mode=False):
@@ -52,8 +226,13 @@ def process_simulation(simulation_id, num_cpus=-1, local_mode=False):
         txCalc = TetraxCalc(data, simulation_id, json_helper, num_cpus=num_cpus, local_mode=local_mode)
 
         if txCalc.data['chosenExperiment'] == 'Dispersion':
+            watchdog = SimulationWatchdog(json_helper, simulation_id)
+            watchdog.start()
             perf_start = time.perf_counter()
-            dispersion, error = txCalc.calculate_dispersion()
+            try:
+                dispersion, error = txCalc.calculate_dispersion()
+            finally:
+                watchdog.stop()
             perf_elapsed = time.perf_counter() - perf_start
             logger.info(f"Dispersion calculation: {perf_elapsed:.3f} s")
 
@@ -111,9 +290,9 @@ def main():
     logger.info(f"Service Bus Queue: {service_bus_queue_name}")
     logger.info(f"Volume path: {volume_path}")
     logger.info(f"Simulation data path: {simulation_data_path}")
-    
+
     messages_processed = 0
-    
+
     try:
         with ServiceBusClient.from_connection_string(service_bus_connection_string) as client:
             with AutoLockRenewer(max_lock_renewal_duration=MESSAGE_LOCK_RENEWAL_DURATION) as renewer:
@@ -141,6 +320,42 @@ def main():
                                 logger.warning(f"Invalid message format (no simulation_id): {message_body}")
                                 receiver.complete_message(message)
                                 continue
+
+                            delivery_count = message.delivery_count or 1
+
+                            try:
+                                db_path = os.path.join(volume_path, f'{simulation_id}_db.json')
+                                json_helper = JSONHelper(db_path)
+                                db_data = json_helper.get_all_parameters()
+                            except Exception as e:
+                                # Unreadable db: complete instead of retrying a poison message
+                                logger.error(f"Cannot read db for {simulation_id}: {e}")
+                                receiver.complete_message(message)
+                                continue
+
+                            action = classify_delivery(db_data, delivery_count)
+
+                            if action == 'skip_terminal':
+                                logger.info(
+                                    f"{simulation_id} already terminal "
+                                    f"(status={db_data.get('status')!r}, error={db_data.get('error')}, "
+                                    f"delivery {delivery_count}) - completing without recompute")
+                                receiver.complete_message(message)
+                                continue
+
+                            if action == 'give_up':
+                                logger.error(
+                                    f"{simulation_id} died hard on {delivery_count - 1} previous "
+                                    f"deliveries - giving up with terminal error")
+                                json_helper.set_parameter('status', 'Simulation failed repeatedly')
+                                json_helper.set_parameter('error', int(ErrorCode.JOB_CRASHED))
+                                receiver.complete_message(message)
+                                continue
+
+                            if delivery_count > 1:
+                                logger.warning(
+                                    f"Redelivery {delivery_count} for {simulation_id} "
+                                    f"(previous attempt died without terminal state) - retrying once")
 
                             logger.info(f"Processing simulation: {simulation_id}")
                             process_simulation(simulation_id)

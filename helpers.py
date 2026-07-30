@@ -27,6 +27,9 @@ class ErrorCode(IntEnum):
     NAN_IN_DISPERSION = 1  # frontend shows a warning and plots dispersion only
     RELAXATION_FAILED = 2
     UNSUPPORTED_EXPERIMENT = 3
+    TIME_LIMIT_EXCEEDED = 4
+    OUT_OF_MEMORY = 5
+    JOB_CRASHED = 6  # repeated hard death (OOM/infra), cause not observed directly
     UNEXPECTED = 99
 
 
