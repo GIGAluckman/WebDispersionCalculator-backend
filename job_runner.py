@@ -321,7 +321,9 @@ def main():
                                 receiver.complete_message(message)
                                 continue
 
-                            delivery_count = message.delivery_count or 1
+                            # The SDK exposes the raw AMQP header: number of PRIOR
+                            # deliveries (0 on first receive) - normalize to 1-based
+                            delivery_count = (message.delivery_count or 0) + 1
 
                             try:
                                 db_path = os.path.join(volume_path, f'{simulation_id}_db.json')
