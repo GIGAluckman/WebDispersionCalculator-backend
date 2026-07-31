@@ -305,11 +305,17 @@ def main():
                 ) as receiver:
                     logger.info(f"Waiting for messages (timeout: {RECEIVE_TIMEOUT_SECONDS}s)...")
 
-                    for message in receiver:
-                        if messages_processed >= MAX_MESSAGES_PER_RUN:
-                            logger.info(f"Reached max messages per run ({MAX_MESSAGES_PER_RUN}), exiting.")
-                            break
+                    # Receive exactly as many messages as this execution will
+                    # process. The receiver iterator would lock the next message
+                    # before the max-per-run check could break, leaving it
+                    # locked-but-unprocessed for the full lockDuration and
+                    # burning one of its delivery attempts.
+                    messages = receiver.receive_messages(
+                        max_message_count=MAX_MESSAGES_PER_RUN,
+                        max_wait_time=RECEIVE_TIMEOUT_SECONDS,
+                    )
 
+                    for message in messages:
                         try:
                             message_body = str(message)
                             logger.info(f"Raw message: {message_body[:200]}")
