@@ -48,3 +48,19 @@ def test_unknown_simulation_reports_creating(client):
     body = res.get_json()
     assert body['status'] == 'Creating'
     assert body['completed'] is False
+    assert body['attempt'] == 1
+
+
+def test_attempt_defaults_to_one(client, app_env):
+    volume, simdata = app_env
+    seed(volume, simdata, 'sim-1', 'Job started', 0, False)
+    body = client.get('/status/sim-1').get_json()
+    assert body['attempt'] == 1
+
+
+def test_attempt_is_echoed_on_retry(client, app_env):
+    volume, simdata = app_env
+    seed(volume, simdata, 'sim-1', 'Job started', 0, False)
+    JSONHelper(str(volume / 'sim-1_db.json')).set_parameter('attempt', 2)
+    body = client.get('/status/sim-1').get_json()
+    assert body['attempt'] == 2

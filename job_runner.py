@@ -210,7 +210,7 @@ class SimulationWatchdog:
         self.exit_fn(1)
 
 
-def process_simulation(simulation_id, num_cpus=-1, local_mode=False):
+def process_simulation(simulation_id, num_cpus=-1, local_mode=False, attempt=1):
     """Process a simulation job."""
     logger.info(f"Starting simulation for {simulation_id}")
 
@@ -222,6 +222,7 @@ def process_simulation(simulation_id, num_cpus=-1, local_mode=False):
 
         json_helper.set_parameter('status', 'Job started')
         json_helper.set_parameter('progress', 0)
+        json_helper.set_parameter('attempt', attempt)
 
         txCalc = TetraxCalc(data, simulation_id, json_helper, num_cpus=num_cpus, local_mode=local_mode)
 
@@ -360,7 +361,7 @@ def main():
                                     f"(previous attempt died without terminal state) - retrying once")
 
                             logger.info(f"Processing simulation: {simulation_id}")
-                            process_simulation(simulation_id)
+                            process_simulation(simulation_id, attempt=delivery_count)
 
                             receiver.complete_message(message)
                             messages_processed += 1

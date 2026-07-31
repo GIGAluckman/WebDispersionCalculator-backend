@@ -158,7 +158,7 @@ def status(simulation_id):
         data = json_helper.get_all_parameters()
     except Exception as e:
         logger.error(f"Error reading status for {simulation_id}: {e}")
-        return jsonify({"status": "Creating", "progress": 0, "error": 0, "completed": False})
+        return jsonify({"status": "Creating", "progress": 0, "error": 0, "completed": False, "attempt": 1})
 
     status_value = data.get('status', 'NA')
     progress = data.get('progress', 0)
@@ -175,7 +175,8 @@ def status(simulation_id):
         "status": status_value,
         "progress": progress,
         "error": error,
-        "completed": completed
+        "completed": completed,
+        "attempt": data.get('attempt', 1)
     })
 
 # Route to retrieve simulation result

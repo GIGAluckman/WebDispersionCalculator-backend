@@ -149,6 +149,26 @@ class TestWatchdogMemory:
         wd.exit_fn.assert_not_called()
 
 
+class TestProcessSimulationAttempt:
+    def _run(self, tmp_path, monkeypatch, **kwargs):
+        monkeypatch.setattr(job_runner, 'volume_path', str(tmp_path))
+        helper = JSONHelper(str(tmp_path / 'sim1_db.json'))
+        helper.create_db({'status': 'Spinning up', 'error': 0, 'progress': 0})
+        fake_calc = mock.MagicMock()
+        fake_calc.data = {'chosenExperiment': 'Other'}  # skip the compute path
+        with mock.patch.object(job_runner, 'TetraxCalc', return_value=fake_calc):
+            job_runner.process_simulation('sim1', **kwargs)
+        return helper
+
+    def test_retry_records_attempt_number(self, tmp_path, monkeypatch):
+        helper = self._run(tmp_path, monkeypatch, attempt=2)
+        assert helper.get_parameter('attempt') == 2
+
+    def test_default_is_first_attempt(self, tmp_path, monkeypatch):
+        helper = self._run(tmp_path, monkeypatch)
+        assert helper.get_parameter('attempt') == 1
+
+
 class TestWatchdogThread:
     def test_thread_fires_on_time_limit(self, helper):
         fired = threading.Event()
