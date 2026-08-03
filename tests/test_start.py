@@ -1,5 +1,6 @@
 """/start dispatch behavior."""
 import json
+from datetime import datetime, timezone
 
 
 VALID_PAYLOAD = {
@@ -25,6 +26,9 @@ def test_start_accepted_when_dispatch_succeeds(client, app_module, app_env, monk
     assert db['error'] == 0
     assert db['progress'] == 0
     assert 'Spinning up' in db['status']
+    created = datetime.fromisoformat(db['created'])
+    assert created.tzinfo is not None
+    assert abs((datetime.now(timezone.utc) - created).total_seconds()) < 60
 
 
 def test_start_503_when_both_dispatch_paths_fail(client, app_module, monkeypatch):

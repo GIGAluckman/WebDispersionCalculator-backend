@@ -35,7 +35,7 @@ RUN apt-get update && \
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY job_runner.py TetraxCalc.py helpers.py df_manipulation.py /app/
+COPY job_runner.py TetraxCalc.py helpers.py df_manipulation.py maintenance.py /app/
 
 # Run from /
 WORKDIR /

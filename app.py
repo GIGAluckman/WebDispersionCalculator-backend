@@ -12,7 +12,7 @@ import meshio
 import pandas as pd
 import glob
 from azure.servicebus import ServiceBusClient, ServiceBusMessage
-from helpers import JSONHelper, validate_simulation_id
+from helpers import JSONHelper, validate_simulation_id, utc_now_iso
 from app_data_proc import (
     fields_names_dict,
     find_closest_mode,
@@ -136,6 +136,7 @@ def start():
     data["status"] = "Spinning up a container... (needs about 30 seconds)"
     data["error"] = 0
     data["progress"] = 0
+    data["created"] = utc_now_iso()
     json_helper.create_db(data)
 
     # Send message to Service Bus Queue, or run job locally if not configured

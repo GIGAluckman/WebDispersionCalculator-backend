@@ -102,6 +102,7 @@ class TestWatchdogTimeLimit:
         exit_fn.assert_called_once_with(1)
         assert helper.get_parameter('status') == 'Simulation time limit reached'
         assert helper.get_parameter('error') == int(ErrorCode.TIME_LIMIT_EXCEEDED)
+        assert helper.get_parameter('finished') != 0
 
     def test_under_limit_does_nothing(self, helper):
         wd = make_watchdog(helper)
@@ -167,6 +168,33 @@ class TestProcessSimulationAttempt:
     def test_default_is_first_attempt(self, tmp_path, monkeypatch):
         helper = self._run(tmp_path, monkeypatch)
         assert helper.get_parameter('attempt') == 1
+
+    def test_terminal_state_records_finished_timestamp(self, tmp_path, monkeypatch):
+        # 'Other' experiment goes down the unsupported-experiment terminal path
+        helper = self._run(tmp_path, monkeypatch)
+        finished = helper.get_parameter('finished')
+        assert isinstance(finished, str) and finished
+
+    def test_unexpected_error_records_finished_timestamp(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(job_runner, 'volume_path', str(tmp_path))
+        helper = JSONHelper(str(tmp_path / 'sim1_db.json'))
+        helper.create_db({'status': 'Spinning up', 'error': 0, 'progress': 0})
+        with mock.patch.object(job_runner, 'TetraxCalc', side_effect=RuntimeError('boom')):
+            job_runner.process_simulation('sim1')
+        assert helper.get_parameter('error') == int(ErrorCode.UNEXPECTED)
+        finished = helper.get_parameter('finished')
+        assert isinstance(finished, str) and finished
+
+
+class TestMarkFinished:
+    def test_writes_iso_timestamp(self, helper):
+        job_runner.mark_finished(helper)
+        finished = helper.get_parameter('finished')
+        assert isinstance(finished, str) and 'T' in finished
+
+    def test_swallows_write_failure(self, tmp_path):
+        broken = JSONHelper(str(tmp_path / 'missing' / 'db.json'))
+        job_runner.mark_finished(broken)  # must not raise
 
 
 class TestWatchdogThread:

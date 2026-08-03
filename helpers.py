@@ -4,6 +4,7 @@ import re
 import time
 import random
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from enum import IntEnum
 
 # fcntl is not available on Windows
@@ -31,6 +32,11 @@ class ErrorCode(IntEnum):
     OUT_OF_MEMORY = 5
     JOB_CRASHED = 6  # repeated hard death (OOM/infra), cause not observed directly
     UNEXPECTED = 99
+
+
+def utc_now_iso():
+    """ISO 8601 UTC timestamp, e.g. '2026-08-03T06:00:12+00:00'."""
+    return datetime.now(timezone.utc).isoformat(timespec='seconds')
 
 
 def validate_simulation_id(simulation_id, base_dir):

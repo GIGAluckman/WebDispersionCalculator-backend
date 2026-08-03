@@ -13,7 +13,7 @@ import traceback
 from dotenv import load_dotenv
 from azure.servicebus import ServiceBusClient, ServiceBusReceiveMode, AutoLockRenewer
 from TetraxCalc import TetraxCalc
-from helpers import JSONHelper, ErrorCode
+from helpers import JSONHelper, ErrorCode, utc_now_iso
 
 logging.basicConfig(
     level=logging.INFO,
@@ -92,6 +92,15 @@ def read_container_memory(paths=None):
         except (OSError, ValueError):
             continue
     return None
+
+
+def mark_finished(json_helper):
+    """Record the terminal-transition time; a timestamp failure must never
+    mask the simulation's real outcome."""
+    try:
+        json_helper.set_parameter('finished', utc_now_iso())
+    except Exception as e:
+        logger.warning(f"Could not record finished timestamp: {e}")
 
 
 def classify_delivery(db_data, delivery_count):
@@ -207,6 +216,7 @@ class SimulationWatchdog:
         except Exception as e:
             logger.error(f'Watchdog could not record {trigger} state for '
                          f'{self.simulation_id}: {e}')
+        mark_finished(self.json_helper)
         self.exit_fn(1)
 
 
@@ -247,9 +257,11 @@ def process_simulation(simulation_id, num_cpus=-1, local_mode=False, attempt=1):
                 json_helper.set_parameter('status', 'Completed with errors')
                 json_helper.set_parameter('error', int(error))
                 logger.warning(f"Simulation completed with error {error} for {simulation_id}")
+            mark_finished(json_helper)
         else:
             json_helper.set_parameter('status', 'Experiment type not supported')
             json_helper.set_parameter('error', int(ErrorCode.UNSUPPORTED_EXPERIMENT))
+            mark_finished(json_helper)
             logger.warning(f"Unsupported experiment type for {simulation_id}")
 
     except Exception as e:
@@ -262,6 +274,7 @@ def process_simulation(simulation_id, num_cpus=-1, local_mode=False, attempt=1):
             json_helper = JSONHelper(db_path)
             json_helper.set_parameter('status', f'Error: {str(e)}')
             json_helper.set_parameter('error', int(ErrorCode.UNEXPECTED))
+            mark_finished(json_helper)
         except Exception as db_error:
             logger.error(f"Could not record error state for {simulation_id}: {db_error}")
 
@@ -358,6 +371,7 @@ def main():
                                     f"deliveries - giving up with terminal error")
                                 json_helper.set_parameter('status', 'Simulation failed repeatedly')
                                 json_helper.set_parameter('error', int(ErrorCode.JOB_CRASHED))
+                                mark_finished(json_helper)
                                 receiver.complete_message(message)
                                 continue
 
